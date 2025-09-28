@@ -286,14 +286,8 @@ fn parse_trade_event(
         total_unclaimed_tokens,
         total_claimed_tokens,
         current_sol_volume,
-        last_update_timestamp: 0,
 
-        // 暂时注释，以后会用，AI禁止改动
-        // 指令账户字段 - 默认值，由account_filler填充
-        // global: Pubkey::default(),
-        // bonding_curve: Pubkey::default(),
-        // associated_bonding_curve: Pubkey::default(),
-        // associated_user: Pubkey::default(),
+        ..Default::default()
     }))
 }
 
@@ -498,14 +492,9 @@ fn parse_trade_from_text(
         total_unclaimed_tokens: 0,
         total_claimed_tokens: 0,
         current_sol_volume: 0,
-        last_update_timestamp: 0, // TODO
+        last_update_timestamp: 0,
 
-        // 暂时注释，以后会用，AI禁止改动
-        // 指令账户字段
-        // global: Pubkey::default(),
-        // bonding_curve: Pubkey::default(),
-        // associated_bonding_curve: Pubkey::default(),
-        // associated_user: Pubkey::default(),
+        ..Default::default()
     }))
 }
 

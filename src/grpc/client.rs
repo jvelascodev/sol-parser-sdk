@@ -212,12 +212,15 @@ impl YellowstoneGrpc {
         if let Some(transaction_info) = &transaction_update.transaction {
             // 从 transaction_info.index 获取交易索引
             let tx_index = transaction_info.index;
+            let transaction = &transaction_info.transaction;
             let mut sig_array = [0u8; 64];
             sig_array.copy_from_slice(&transaction_info.signature);
             let signature = solana_sdk::signature::Signature::from(sig_array);
             if let Some(meta) = &transaction_info.meta {
                 let logs = &meta.log_messages;
                 Self::parse_events(
+                    meta,
+                    transaction,
                     logs,
                     signature,
                     transaction_update.slot,
@@ -234,6 +237,8 @@ impl YellowstoneGrpc {
     /// 解析日志事件到队列
     #[inline]
     fn parse_events(
+        meta: &TransactionStatusMeta,
+        transaction: &Option<yellowstone_grpc_proto::prelude::Transaction>,
         logs: &[String],
         signature: solana_sdk::signature::Signature,
         slot: u64,
@@ -246,14 +251,35 @@ impl YellowstoneGrpc {
         let has_create = event_type_filter.map(|f| f.includes_pumpfun()).unwrap_or(true)
             && crate::logs::optimized_matcher::detect_pumpfun_create(logs);
 
+        // 外层指令索引
+        let mut outer_index = -1;
+        // 内层指令索引
+        let mut inner_index = -1;
+        // 记录每个程序的调用栈位置
+        let mut program_invokes: HashMap<String, Vec<(i32, i32)>> = HashMap::new();
+
         for log in logs.iter() {
+            if let Some((program_id, depth)) =
+                crate::logs::optimized_matcher::parse_invoke_info(log)
+            {
+                if depth == 1 {
+                    // 外层指令
+                    inner_index = -1;
+                    outer_index += 1;
+                } else {
+                    // 内层指令
+                    inner_index += 1;
+                }
+                program_invokes.entry(program_id).or_default().push((outer_index, inner_index));
+            }
+
             let log_bytes = log.as_bytes();
 
             if PROGRAM_DATA_FINDER.find(log_bytes).is_none() {
                 continue;
             }
 
-            if let Some(log_event) = crate::logs::parse_log(
+            if let Some(mut log_event) = crate::logs::parse_log(
                 log,
                 signature,
                 slot,
@@ -263,6 +289,13 @@ impl YellowstoneGrpc {
                 event_type_filter,
                 has_create,
             ) {
+                // 填充账户信息
+                crate::core::account_filler::fill_accounts_from_transaction_data(
+                    &mut log_event,
+                    meta,
+                    transaction,
+                    &program_invokes,
+                );
                 let _ = queue.push(log_event);
             }
         }

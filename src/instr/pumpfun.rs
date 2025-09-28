@@ -2,10 +2,10 @@
 //!
 //! 使用 match discriminator 模式解析 PumpFun 指令
 
-use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use crate::core::events::*;
-use super::utils::*;
 use super::program_ids;
+use super::utils::*;
+use crate::core::events::*;
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
 /// PumpFun discriminator 常量
 pub mod discriminators {
@@ -36,13 +36,13 @@ pub fn parse_instruction(
     match discriminator {
         discriminators::CREATE => {
             parse_create_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
+        }
         discriminators::BUY => {
             parse_buy_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
+        }
         discriminators::SELL => {
             parse_sell_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
+        }
         _ => None,
     }
 }
@@ -72,7 +72,7 @@ fn parse_create_instruction(
         virtual_token_reserves: 1_073_000_000_000_000,
         virtual_sol_reserves: 30_000_000_000,
         real_token_reserves: 0, // 将从日志填充
-        token_total_supply: 0, // 将从日志填充
+        token_total_supply: 0,  // 将从日志填充
     }))
 }
 
@@ -86,48 +86,16 @@ fn parse_buy_instruction(
     block_time_us: Option<i64>,
 ) -> Option<DexEvent> {
     let mut offset = 0;
-
     let amount = read_u64_le(data, offset)?;
     offset += 8;
-
     let max_sol_cost = read_u64_le(data, offset)?;
-
     let mint = get_account(accounts, 2)?; // mint is at index 2
     let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, mint);
-
     Some(DexEvent::PumpFunTrade(PumpFunTradeEvent {
         metadata,
-
-        // IDL TradeEvent 字段 - 从日志填充，这里设置默认值
         mint,
-        sol_amount: 0, // 将从日志填充
-        token_amount: 0, // 将从日志填充
         is_buy: true,
-        is_created_buy: false, // 将在上层设置
-        user: Pubkey::default(), // 将从日志填充
-        timestamp: 0,
-        virtual_sol_reserves: 0, // 将从日志填充
-        virtual_token_reserves: 0, // 将从日志填充
-        real_sol_reserves: 0, // 将从日志填充
-        real_token_reserves: 0, // 将从日志填充
-        fee_recipient: Pubkey::default(), // 将从日志填充
-        fee_basis_points: 0, // 将从日志填充
-        fee: 0, // 将从日志填充
-        creator: Pubkey::default(), // 将从日志填充
-        creator_fee_basis_points: 0, // 将从日志填充
-        creator_fee: 0, // 将从日志填充
-        track_volume: false, // 将从日志填充
-        total_unclaimed_tokens: 0, // 将从日志填充
-        total_claimed_tokens: 0, // 将从日志填充
-        current_sol_volume: 0, // 将从日志填充
-        last_update_timestamp: 0, // 将从日志填充
-
-        // 暂时注释，以后会用，AI禁止改动
-        // 指令账户字段 - 从account_filler填充
-        // global: Pubkey::default(),
-        // bonding_curve: Pubkey::default(),
-        // associated_bonding_curve: Pubkey::default(),
-        // associated_user: Pubkey::default(),
+        ..Default::default()
     }))
 }
 
@@ -141,47 +109,15 @@ fn parse_sell_instruction(
     block_time_us: Option<i64>,
 ) -> Option<DexEvent> {
     let mut offset = 0;
-
     let amount = read_u64_le(data, offset)?;
     offset += 8;
-
     let min_sol_output = read_u64_le(data, offset)?;
-
     let mint = get_account(accounts, 2)?; // mint is at index 2
     let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, mint);
-
     Some(DexEvent::PumpFunTrade(PumpFunTradeEvent {
         metadata,
-
-        // IDL TradeEvent 字段 - 从日志填充，这里设置默认值
         mint,
-        sol_amount: 0, // 将从日志填充
-        token_amount: 0, // 将从日志填充
         is_buy: false,
-        is_created_buy: false, // 将在上层设置
-        user: Pubkey::default(), // 将从日志填充
-        timestamp: 0,
-        virtual_sol_reserves: 0, // 将从日志填充
-        virtual_token_reserves: 0, // 将从日志填充
-        real_sol_reserves: 0, // 将从日志填充
-        real_token_reserves: 0, // 将从日志填充
-        fee_recipient: Pubkey::default(), // 将从日志填充
-        fee_basis_points: 0, // 将从日志填充
-        fee: 0, // 将从日志填充
-        creator: Pubkey::default(), // 将从日志填充
-        creator_fee_basis_points: 0, // 将从日志填充
-        creator_fee: 0, // 将从日志填充
-        track_volume: false, // 将从日志填充
-        total_unclaimed_tokens: 0, // 将从日志填充
-        total_claimed_tokens: 0, // 将从日志填充
-        current_sol_volume: 0, // 将从日志填充
-        last_update_timestamp: 0, // 将从日志填充
-
-        // 暂时注释，以后会用，AI禁止改动
-        // 指令账户字段 - 从account_filler填充
-        // global: Pubkey::default(),
-        // bonding_curve: Pubkey::default(),
-        // associated_bonding_curve: Pubkey::default(),
-        // associated_user: Pubkey::default(),
+        ..Default::default()
     }))
 }

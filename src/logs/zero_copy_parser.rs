@@ -2,7 +2,6 @@
 
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use crate::core::events::*;
-use super::utils::*;
 use memchr::memmem;
 use base64::{Engine as _, engine::general_purpose};
 use super::perf_hints::prefetch_read;
@@ -160,12 +159,7 @@ pub fn parse_pumpfun_trade(
         total_unclaimed_tokens,
         total_claimed_tokens,
         current_sol_volume,
-        last_update_timestamp: 0,
-        // 暂时注释，以后会用，AI禁止改动
-        // bonding_curve: Pubkey::default(),
-        // associated_bonding_curve: Pubkey::default(),
-        // associated_user: Pubkey::default(),
-        // global: Pubkey::default(),
+        ..Default::default()
     }))
 }
 

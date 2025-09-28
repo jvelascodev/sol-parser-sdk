@@ -364,3 +364,50 @@ pub fn parse_log_optimized(
 pub fn detect_pumpfun_create(logs: &[String]) -> bool {
     logs.iter().any(|log| PUMPFUN_CREATE_FINDER.find(log.as_bytes()).is_some())
 }
+
+/// SIMD 优化的 "invoke [" 查找器
+static INVOKE_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"invoke ["));
+
+/// 从日志中解析指令调用信息 (SIMD 优化版本)
+/// 返回 (program_id, depth)
+#[inline]
+pub fn parse_invoke_info(log: &str) -> Option<(String, usize)> {
+    let log_bytes = log.as_bytes();
+
+    // SIMD 快速查找 "invoke ["
+    let invoke_start = INVOKE_FINDER.find(log_bytes)?;
+    let bracket_start = invoke_start + 8; // "invoke [" 长度
+
+    // 边界检查
+    if bracket_start >= log_bytes.len() {
+        return None;
+    }
+
+    // 解析深度数字，直到遇到 ']'
+    let mut depth = 0usize;
+    for &byte in &log_bytes[bracket_start..] {
+        match byte {
+            b'0'..=b'9' => {
+                depth = depth * 10 + (byte - b'0') as usize;
+            }
+            b']' => break,
+            _ => return None, // 遇到非数字非']'字符，解析失败
+        }
+    }
+
+    // 提取程序ID：从 "Program " 开始到 " invoke" 结束
+    if invoke_start < 8 {
+        return None; // 没有足够空间放 "Program "
+    }
+
+    let program_start = 8; // "Program " 的长度
+    let program_end = invoke_start - 1; // " invoke" 前面的空格位置
+
+    if program_end <= program_start {
+        return None;
+    }
+
+    let program_id = std::str::from_utf8(&log_bytes[program_start..program_end]).ok()?.to_string();
+
+    Some((program_id, depth))
+}

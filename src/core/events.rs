@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
 /// 基础元数据 - 所有事件共享的字段
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EventMetadata {
     pub signature: Signature,
     pub slot: u64,
-    pub tx_index: u64,  // 交易在slot中的索引，参考solana-streamer
+    pub tx_index: u64, // 交易在slot中的索引，参考solana-streamer
     pub block_time_us: i64,
     pub grpc_recv_us: i64,
 }
@@ -74,7 +74,7 @@ pub struct BonkMigrateAmmEvent {
 /// 字段来源标记:
 /// - [EVENT]: 来自原始IDL事件定义，由程序日志直接解析获得
 /// - [INSTRUCTION]: 来自指令解析，用于补充事件缺失的上下文信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PumpFunTradeEvent {
     pub metadata: EventMetadata,
 
@@ -108,10 +108,11 @@ pub struct PumpFunTradeEvent {
     // pub min_sol_output: u64,             // sell.args.minSolOutput
 
     // === 指令账户字段 (暂时注释，以后可能会用到，AI不要删除) ===
-    // pub global: Pubkey,                  // 0: global
-    // pub bonding_curve: Pubkey,           // 3: bonding_curve
-    // pub associated_bonding_curve: Pubkey, // 4: associated_bonding_curve
-    // pub associated_user: Pubkey,         // 5: associated_user
+    // pub global: Pubkey,                  // 0
+    pub bonding_curve: Pubkey,            // 3
+    pub associated_bonding_curve: Pubkey, // 4
+    // pub associated_user: Pubkey,         // 5
+    pub creator_vault: Pubkey, // sell - 8 / buy - 9
 }
 
 /// PumpFun Complete Token Event
@@ -334,7 +335,6 @@ pub struct RaydiumCpmmSwapEvent {
     pub input_transfer_fee: u64,
     pub output_transfer_fee: u64,
     pub base_input: bool,
-
     // === 指令参数字段 (暂时注释，以后可能会用到，AI不要删除) ===
     // pub amount_in: u64,
     // pub minimum_amount_out: u64,
@@ -402,7 +402,6 @@ pub struct RaydiumClmmSwapEvent {
     pub sqrt_price_x64: u128,
     pub liquidity: u128,
     pub tick: i32,
-
     // === 指令参数字段 (暂时注释，以后可能会用到，AI不要删除) ===
     // pub amount: u64,
     // pub other_amount_threshold: u64,
@@ -1000,7 +999,6 @@ pub struct OrcaWhirlpoolSwapEvent {
     pub output_transfer_fee: u64,
     pub lp_fee: u64,
     pub protocol_fee: u64,
-
     // === 指令参数字段 (暂时注释，以后可能会用到，AI不要删除) ===
     // pub amount: u64,
     // pub other_amount_threshold: u64,
@@ -1073,7 +1071,7 @@ pub struct MeteoraPoolsSwapEvent {
     pub in_amount: u64,
     pub out_amount: u64,
     pub trade_fee: u64,
-    pub admin_fee: u64,  // IDL字段名: adminFee
+    pub admin_fee: u64, // IDL字段名: adminFee
     pub host_fee: u64,
 }
 
@@ -1122,8 +1120,8 @@ pub struct MeteoraPoolsSetPoolFeesEvent {
     pub metadata: EventMetadata,
     pub trade_fee_numerator: u64,
     pub trade_fee_denominator: u64,
-    pub owner_trade_fee_numerator: u64,  // IDL字段名: ownerTradeFeeNumerator
-    pub owner_trade_fee_denominator: u64,  // IDL字段名: ownerTradeFeeDenominator
+    pub owner_trade_fee_numerator: u64, // IDL字段名: ownerTradeFeeNumerator
+    pub owner_trade_fee_denominator: u64, // IDL字段名: ownerTradeFeeDenominator
     pub pool: Pubkey,
 }
 
@@ -1243,7 +1241,7 @@ pub struct MeteoraDammV2ClaimRewardEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeteoraDlmmSwapEvent {
     pub metadata: EventMetadata,
-    pub pool: Pubkey,  // lbPair in IDL
+    pub pool: Pubkey, // lbPair in IDL
     pub from: Pubkey,
     pub start_bin_id: i32,
     pub end_bin_id: i32,
@@ -1252,7 +1250,7 @@ pub struct MeteoraDlmmSwapEvent {
     pub swap_for_y: bool,
     pub fee: u64,
     pub protocol_fee: u64,
-    pub fee_bps: u128,  // IDL字段
+    pub fee_bps: u128, // IDL字段
     pub host_fee: u64,
 }
 
@@ -1260,22 +1258,22 @@ pub struct MeteoraDlmmSwapEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeteoraDlmmAddLiquidityEvent {
     pub metadata: EventMetadata,
-    pub pool: Pubkey,  // lbPair in IDL
+    pub pool: Pubkey, // lbPair in IDL
     pub from: Pubkey,
-    pub position: Pubkey,  // IDL字段
+    pub position: Pubkey,   // IDL字段
     pub amounts: [u64; 2],  // IDL定义为固定大小数组
-    pub active_bin_id: i32,  // IDL字段 activeBinId
+    pub active_bin_id: i32, // IDL字段 activeBinId
 }
 
 /// Meteora DLMM Remove Liquidity Event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeteoraDlmmRemoveLiquidityEvent {
     pub metadata: EventMetadata,
-    pub pool: Pubkey,  // lbPair in IDL
+    pub pool: Pubkey, // lbPair in IDL
     pub from: Pubkey,
-    pub position: Pubkey,  // IDL字段
+    pub position: Pubkey,   // IDL字段
     pub amounts: [u64; 2],  // IDL定义为固定大小数组
-    pub active_bin_id: i32,  // IDL字段 activeBinId
+    pub active_bin_id: i32, // IDL字段 activeBinId
 }
 
 /// Meteora DLMM Initialize Pool Event
