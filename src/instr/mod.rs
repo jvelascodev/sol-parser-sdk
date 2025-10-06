@@ -48,27 +48,36 @@ pub fn parse_instruction_unified(
     // 提前过滤和解析
     if let Some(filter) = event_type_filter {
         if let Some(ref include_only) = filter.include_only {
-            let should_parse =
-                include_only.iter().any(|t| matches!(t, EventType::MeteoraDammV2Swap));
+            let should_parse = include_only.iter().any(|t| {
+                matches!(
+                    t,
+                    EventType::MeteoraDammV2Swap
+                        | EventType::MeteoraDammV2AddLiquidity
+                        | EventType::MeteoraDammV2CreatePosition
+                )
+            });
             if unlikely(!should_parse) {
                 return None;
             }
-
-            // 根据程序 ID 路由到相应的解析器，按使用频率排序
-
-            // Meteora DAMM
-            if *program_id == METEORA_DAMM_V2_PROGRAM_ID && filter.includes_meteora_damm_v2() {
-                return parse_meteora_damm_instruction(
-                    instruction_data,
-                    accounts,
-                    signature,
-                    slot,
-                    tx_index,
-                    block_time_us,
-                    grpc_recv_us,
-                );
-            }
         }
+    }
+
+    // 根据程序 ID 路由到相应的解析器，按使用频率排序
+
+    // Meteora DAMM
+    if *program_id == METEORA_DAMM_V2_PROGRAM_ID {
+        if event_type_filter.is_some() && !event_type_filter.unwrap().includes_meteora_damm_v2() {
+            return None;
+        }
+        return parse_meteora_damm_instruction(
+            instruction_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        );
     }
 
     None

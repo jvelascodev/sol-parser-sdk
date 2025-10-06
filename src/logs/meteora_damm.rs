@@ -149,35 +149,36 @@ fn parse_add_liquidity_event(
     block_time_us: Option<i64>,
     grpc_recv_us: i64,
 ) -> Option<DexEvent> {
-    let mut offset = 0;
+    // let mut offset = 0;
 
-    let lb_pair = read_pubkey(data, offset)?;
-    offset += 32;
+    // let lb_pair = read_pubkey(data, offset)?;
+    // offset += 32;
 
-    let from = read_pubkey(data, offset)?;
-    offset += 32;
+    // let from = read_pubkey(data, offset)?;
+    // offset += 32;
 
-    let position = read_pubkey(data, offset)?;
-    offset += 32;
+    // let position = read_pubkey(data, offset)?;
+    // offset += 32;
 
-    let amounts = [
-        read_u64_le(data, offset)?,
-        read_u64_le(data, offset + 8)?,
-    ];
-    offset += 16;
+    // let amounts = [
+    //     read_u64_le(data, offset)?,
+    //     read_u64_le(data, offset + 8)?,
+    // ];
+    // offset += 16;
 
-    let active_bin_id = read_i32_le(data, offset)?;
+    // let active_bin_id = read_i32_le(data, offset)?;
 
-    let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, lb_pair, grpc_recv_us);
+    // let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, lb_pair, grpc_recv_us);
 
-    Some(DexEvent::MeteoraDammV2AddLiquidity(MeteoraDammV2AddLiquidityEvent {
-        metadata,
-        lb_pair,
-        from,
-        position,
-        amounts,
-        active_bin_id,
-    }))
+    // Some(DexEvent::MeteoraDammV2AddLiquidity(MeteoraDammV2AddLiquidityEvent {
+    //     metadata,
+    //     lb_pair,
+    //     from,
+    //     position,
+    //     amounts,
+    //     active_bin_id,
+    // }))
+    None
 }
 
 /// 解析 Remove Liquidity 事件
@@ -262,24 +263,25 @@ fn parse_create_position_event(
     block_time_us: Option<i64>,
     grpc_recv_us: i64,
 ) -> Option<DexEvent> {
-    let mut offset = 0;
+    // let mut offset = 0;
 
-    let lb_pair = read_pubkey(data, offset)?;
-    offset += 32;
+    // let lb_pair = read_pubkey(data, offset)?;
+    // offset += 32;
 
-    let position = read_pubkey(data, offset)?;
-    offset += 32;
+    // let position = read_pubkey(data, offset)?;
+    // offset += 32;
 
-    let owner = read_pubkey(data, offset)?;
+    // let owner = read_pubkey(data, offset)?;
 
-    let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, lb_pair, grpc_recv_us);
+    // let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, lb_pair, grpc_recv_us);
 
-    Some(DexEvent::MeteoraDammV2CreatePosition(MeteoraDammV2CreatePositionEvent {
-        metadata,
-        lb_pair,
-        position,
-        owner,
-    }))
+    // Some(DexEvent::MeteoraDammV2CreatePosition(MeteoraDammV2CreatePositionEvent {
+    //     metadata,
+    //     lb_pair,
+    //     position,
+    //     owner,
+    // }))
+    None
 }
 
 /// 解析 Close Position 事件
