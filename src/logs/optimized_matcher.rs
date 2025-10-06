@@ -171,15 +171,11 @@ pub fn parse_log_optimized(
     event_type_filter: Option<&EventTypeFilter>,
     is_created_buy: bool,
 ) -> Option<DexEvent> {
-    // 快速类型检测
-    // let log_type = detect_log_type(log);
-
     // 提前过滤和解析
     if let Some(filter) = event_type_filter {
         if let Some(ref include_only) = filter.include_only {
             // PumpFun Trade 超快路径（最常见情况）
             if likely(include_only.len() == 1 && include_only[0] == EventType::PumpFunTrade) {
-                // if likely(log_type == LogType::PumpFun) {
                 // 使用优化解析器：栈分配，无堆分配，内联函数
                 return crate::logs::parse_pumpfun_trade(
                     log,
@@ -190,9 +186,6 @@ pub fn parse_log_optimized(
                     grpc_recv_us,
                     is_created_buy,
                 );
-                // } else {
-                //     return None;
-                // }
             }
 
             let should_parse = include_only.iter().any(|t| {
@@ -205,58 +198,10 @@ pub fn parse_log_optimized(
                         | EventType::PumpSwapBuy
                         | EventType::PumpSwapSell
                         | EventType::PumpSwapCreatePool
-                        // | EventType::PumpSwapTrade
                         | EventType::PumpSwapLiquidityAdded
-                        | EventType::PumpSwapLiquidityRemoved // | EventType::PumpSwapPoolUpdated
-                                                              // | EventType::PumpSwapFeesClaimed
+                        | EventType::PumpSwapLiquidityRemoved
                 )
             });
-
-            // 提前过滤：如果该协议的所有事件都不在过滤范围内，直接跳过解析
-            // let should_parse = match log_type {
-            //     LogType::PumpFun => include_only.iter().any(|t| {
-            //         matches!(
-            //             t,
-            //             EventType::PumpFunTrade
-            //                 | EventType::PumpFunCreate
-            //                 | EventType::PumpFunComplete
-            //                 | EventType::PumpFunMigrate
-            //         )
-            //     }),
-            //     LogType::RaydiumAmm => include_only.iter().any(|t| {
-            //         matches!(
-            //             t,
-            //             EventType::RaydiumAmmV4Swap
-            //                 | EventType::RaydiumAmmV4Deposit
-            //                 | EventType::RaydiumAmmV4Withdraw
-            //                 | EventType::RaydiumAmmV4Initialize2
-            //                 | EventType::RaydiumAmmV4WithdrawPnl
-            //         )
-            //     }),
-            //     LogType::RaydiumClmm => include_only.iter().any(|t| {
-            //         matches!(
-            //             t,
-            //             EventType::RaydiumClmmSwap
-            //                 | EventType::RaydiumClmmCreatePool
-            //                 | EventType::RaydiumClmmOpenPosition
-            //                 | EventType::RaydiumClmmClosePosition
-            //                 | EventType::RaydiumClmmIncreaseLiquidity
-            //                 | EventType::RaydiumClmmDecreaseLiquidity
-            //                 | EventType::RaydiumClmmOpenPositionWithTokenExtNft
-            //                 | EventType::RaydiumClmmCollectFee
-            //         )
-            //     }),
-            //     LogType::RaydiumCpmm => include_only.iter().any(|t| {
-            //         matches!(
-            //             t,
-            //             EventType::RaydiumCpmmSwap
-            //                 | EventType::RaydiumCpmmDeposit
-            //                 | EventType::RaydiumCpmmWithdraw
-            //                 | EventType::RaydiumCpmmInitialize
-            //         )
-            //     }),
-            //     _ => true,
-            // };
 
             if unlikely(!should_parse) {
                 return None;
@@ -284,92 +229,6 @@ pub fn parse_log_optimized(
         );
     }
 
-    // 根据类型直接调用相应的解析器，传入grpc_recv_us
-    // let event = match log_type {
-    //     LogType::PumpFun => crate::logs::parse_pumpfun_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //         is_created_buy,
-    //     ),
-    //     LogType::RaydiumLaunchpad => crate::logs::parse_raydium_launchpad_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::PumpAmm => crate::logs::parse_pump_amm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::RaydiumClmm => crate::logs::parse_raydium_clmm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::RaydiumCpmm => crate::logs::parse_raydium_cpmm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::RaydiumAmm => crate::logs::parse_raydium_amm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::OrcaWhirlpool => crate::logs::parse_orca_whirlpool_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::MeteoraAmm => crate::logs::parse_meteora_amm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::MeteoraDamm => crate::logs::parse_meteora_damm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::MeteoraDlmm => crate::logs::parse_meteora_dlmm_log(
-    //         log,
-    //         signature,
-    //         slot,
-    //         tx_index,
-    //         block_time_us,
-    //         grpc_recv_us,
-    //     ),
-    //     LogType::Unknown => None,
-    // };
-
     // 应用精确的事件类型过滤
     if let Some(event) = event {
         if let Some(filter) = event_type_filter {
@@ -382,10 +241,6 @@ pub fn parse_log_optimized(
                 DexEvent::PumpSwapCreatePool(_) => EventType::PumpSwapCreatePool,
                 DexEvent::PumpSwapLiquidityAdded(_) => EventType::PumpSwapLiquidityAdded,
                 DexEvent::PumpSwapLiquidityRemoved(_) => EventType::PumpSwapLiquidityRemoved,
-
-                // DexEvent::RaydiumAmmV4Swap(_) => EventType::RaydiumAmmV4Swap,
-                // DexEvent::RaydiumClmmSwap(_) => EventType::RaydiumClmmSwap,
-                // DexEvent::RaydiumCpmmSwap(_) => EventType::RaydiumCpmmSwap,
                 _ => return Some(event),
             };
 
