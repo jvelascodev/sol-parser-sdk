@@ -36,6 +36,10 @@ pub fn parse_instruction(
     let discriminator: [u8; 8] = instruction_data[0..8].try_into().ok()?;
     let data = &instruction_data[8..];
 
+    if instruction_data.len() < 16 {
+        return None;
+    }
+
     let cpi_discriminator: [u8; 8] = instruction_data[8..16].try_into().ok()?;
     let cpi_data = &instruction_data[16..];
 

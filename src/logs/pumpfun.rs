@@ -24,7 +24,7 @@ pub mod discriminators {
     // 事件 discriminators (16 字节) - 使用前8字节进行匹配
     pub const CREATE_EVENT: [u8; 8] = [27, 114, 169, 77, 222, 235, 99, 118];
     pub const TRADE_EVENT: [u8; 8] = [189, 219, 127, 211, 78, 230, 97, 238];
-    pub const MIGRATE_EVENT: [u8; 8] = [95, 114, 97, 156, 212, 46, 152, 8];
+    pub const MIGRATE_EVENT: [u8; 8] = [189, 233, 93, 185, 92, 148, 234, 148];
 }
 
 /// PumpFun 程序 ID

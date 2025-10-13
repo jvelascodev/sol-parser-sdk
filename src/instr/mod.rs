@@ -19,6 +19,7 @@ use crate::logs::perf_hints::unlikely;
 
 // 重新导出主要解析函数
 pub use meteora_damm::parse_instruction as parse_meteora_damm_instruction;
+pub use pumpfun::parse_instruction as parse_pumpfun_instruction;
 
 // 重新导出工具函数
 pub use utils::*;
@@ -51,7 +52,8 @@ pub fn parse_instruction_unified(
             let should_parse = include_only.iter().any(|t| {
                 matches!(
                     t,
-                    EventType::MeteoraDammV2Swap
+                    EventType::PumpFunMigrate
+                        | EventType::MeteoraDammV2Swap
                         | EventType::MeteoraDammV2AddLiquidity
                         | EventType::MeteoraDammV2CreatePosition
                         | EventType::MeteoraDammV2ClosePosition
@@ -66,8 +68,23 @@ pub fn parse_instruction_unified(
 
     // 根据程序 ID 路由到相应的解析器，按使用频率排序
 
+    // Pumpfun
+    if *program_id == PUMPFUN_PROGRAM_ID {
+        if event_type_filter.is_some() && !event_type_filter.unwrap().includes_pumpfun() {
+            return None;
+        }
+        return parse_pumpfun_instruction(
+            instruction_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        );
+    }
     // Meteora DAMM
-    if *program_id == METEORA_DAMM_V2_PROGRAM_ID {
+    else if *program_id == METEORA_DAMM_V2_PROGRAM_ID {
         if event_type_filter.is_some() && !event_type_filter.unwrap().includes_meteora_damm_v2() {
             return None;
         }

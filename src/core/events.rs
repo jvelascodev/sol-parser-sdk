@@ -116,7 +116,7 @@ pub struct PumpFunTradeEvent {
 }
 
 /// PumpFun Migrate Event
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PumpFunMigrateEvent {
     pub metadata: EventMetadata,
     pub user: Pubkey,
