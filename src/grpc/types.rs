@@ -208,58 +208,60 @@ pub enum EventType {
     // PumpSwapFeesClaimed,
 
     // Raydium CPMM events
-    RaydiumCpmmSwap,
-    RaydiumCpmmDeposit,
-    RaydiumCpmmWithdraw,
-    RaydiumCpmmInitialize,
+    // RaydiumCpmmSwap,
+    // RaydiumCpmmDeposit,
+    // RaydiumCpmmWithdraw,
+    // RaydiumCpmmInitialize,
 
     // Raydium CLMM events
-    RaydiumClmmSwap,
-    RaydiumClmmCreatePool,
-    RaydiumClmmOpenPosition,
-    RaydiumClmmClosePosition,
-    RaydiumClmmIncreaseLiquidity,
-    RaydiumClmmDecreaseLiquidity,
-    RaydiumClmmOpenPositionWithTokenExtNft,
-    RaydiumClmmCollectFee,
+    // RaydiumClmmSwap,
+    // RaydiumClmmCreatePool,
+    // RaydiumClmmOpenPosition,
+    // RaydiumClmmClosePosition,
+    // RaydiumClmmIncreaseLiquidity,
+    // RaydiumClmmDecreaseLiquidity,
+    // RaydiumClmmOpenPositionWithTokenExtNft,
+    // RaydiumClmmCollectFee,
 
     // Raydium AMM V4 events
-    RaydiumAmmV4Swap,
-    RaydiumAmmV4Deposit,
-    RaydiumAmmV4Withdraw,
-    RaydiumAmmV4Initialize2,
-    RaydiumAmmV4WithdrawPnl,
+    // RaydiumAmmV4Swap,
+    // RaydiumAmmV4Deposit,
+    // RaydiumAmmV4Withdraw,
+    // RaydiumAmmV4Initialize2,
+    // RaydiumAmmV4WithdrawPnl,
 
     // Orca Whirlpool events
-    OrcaWhirlpoolSwap,
-    OrcaWhirlpoolLiquidityIncreased,
-    OrcaWhirlpoolLiquidityDecreased,
-    OrcaWhirlpoolPoolInitialized,
+    // OrcaWhirlpoolSwap,
+    // OrcaWhirlpoolLiquidityIncreased,
+    // OrcaWhirlpoolLiquidityDecreased,
+    // OrcaWhirlpoolPoolInitialized,
 
     // Meteora events
-    MeteoraPoolsSwap,
-    MeteoraPoolsAddLiquidity,
-    MeteoraPoolsRemoveLiquidity,
-    MeteoraPoolsBootstrapLiquidity,
-    MeteoraPoolsPoolCreated,
-    MeteoraPoolsSetPoolFees,
+    // MeteoraPoolsSwap,
+    // MeteoraPoolsAddLiquidity,
+    // MeteoraPoolsRemoveLiquidity,
+    // MeteoraPoolsBootstrapLiquidity,
+    // MeteoraPoolsPoolCreated,
+    // MeteoraPoolsSetPoolFees,
 
     // Meteora DAMM V2 events
     MeteoraDammV2Swap,
     MeteoraDammV2AddLiquidity,
     MeteoraDammV2RemoveLiquidity,
-    MeteoraDammV2InitializePool,
+    // MeteoraDammV2InitializePool,
     MeteoraDammV2CreatePosition,
     MeteoraDammV2ClosePosition,
-    MeteoraDammV2ClaimPositionFee,
-    MeteoraDammV2InitializeReward,
-    MeteoraDammV2FundReward,
-    MeteoraDammV2ClaimReward,
+    // MeteoraDammV2ClaimPositionFee,
+    // MeteoraDammV2InitializeReward,
+    // MeteoraDammV2FundReward,
+    // MeteoraDammV2ClaimReward,
 
     // Account events
     TokenAccount,
     NonceAccount,
-    TokenInfo,
+
+    AccountPumpSwapGlobalConfig,
+    AccountPumpSwapPool,
 }
 
 #[derive(Debug, Clone)]

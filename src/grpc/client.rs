@@ -4,13 +4,14 @@ use crate::instr::read_pubkey_fast;
 use crate::logs::timestamp_to_microseconds;
 use crate::DexEvent;
 use crossbeam_queue::ArrayQueue;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use log::error;
 use memchr::memmem;
 use once_cell::sync::Lazy;
 use solana_sdk::pubkey::Pubkey;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use tonic::transport::ClientTlsConfig;
 use yellowstone_grpc_client::GeyserGrpcClient;
 use yellowstone_grpc_proto::prelude::*;
@@ -23,6 +24,8 @@ pub struct YellowstoneGrpc {
     endpoint: String,
     token: Option<String>,
     config: ClientConfig,
+    /// 控制通道发送器，用于动态更新订阅
+    control_tx: Arc<Mutex<Option<mpsc::Sender<SubscribeRequest>>>>,
 }
 
 impl YellowstoneGrpc {
@@ -30,7 +33,12 @@ impl YellowstoneGrpc {
         endpoint: String,
         token: Option<String>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(Self { endpoint, token, config: ClientConfig::default() })
+        Ok(Self {
+            endpoint,
+            token,
+            config: ClientConfig::default(),
+            control_tx: Arc::new(Mutex::new(None)),
+        })
     }
 
     pub fn new_with_config(
@@ -38,7 +46,12 @@ impl YellowstoneGrpc {
         token: Option<String>,
         config: ClientConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(Self { endpoint, token, config })
+        Ok(Self {
+            endpoint,
+            token,
+            config,
+            control_tx: Arc::new(Mutex::new(None)),
+        })
     }
 
     /// 订阅DEX事件（零拷贝无锁队列）
@@ -90,6 +103,73 @@ impl YellowstoneGrpc {
         });
 
         Ok(queue)
+    }
+
+    /// 动态更新订阅过滤器（无需重连）
+    pub async fn update_subscription(
+        &self,
+        transaction_filters: Vec<TransactionFilter>,
+        account_filters: Vec<AccountFilter>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // 获取控制通道发送器
+        let control_sender = {
+            let control_guard = self.control_tx.lock().await;
+            control_guard
+                .as_ref()
+                .ok_or("No active subscription to update")?
+                .clone()
+        };
+
+        // 构建新的订阅请求
+        let mut transactions: HashMap<String, SubscribeRequestFilterTransactions> = HashMap::new();
+        for (i, filter) in transaction_filters.iter().enumerate() {
+            transactions.insert(
+                format!("transaction_filter_{}", i),
+                SubscribeRequestFilterTransactions {
+                    vote: Some(false),
+                    failed: Some(false),
+                    signature: None,
+                    account_include: filter.account_include.clone(),
+                    account_exclude: filter.account_exclude.clone(),
+                    account_required: filter.account_required.clone(),
+                },
+            );
+        }
+
+        let mut accounts: HashMap<String, SubscribeRequestFilterAccounts> = HashMap::new();
+        for (i, filter) in account_filters.iter().enumerate() {
+            accounts.insert(
+                format!("account_filter_{}", i),
+                SubscribeRequestFilterAccounts {
+                    account: filter.account.clone(),
+                    owner: filter.owner.clone(),
+                    filters: filter.filters.clone(),
+                    nonempty_txn_signature: None,
+                },
+            );
+        }
+
+        let request = SubscribeRequest {
+            slots: HashMap::new(),
+            accounts,
+            transactions,
+            transactions_status: HashMap::new(),
+            blocks: HashMap::new(),
+            blocks_meta: HashMap::new(),
+            entry: HashMap::new(),
+            commitment: Some(CommitmentLevel::Processed as i32),
+            accounts_data_slice: Vec::new(),
+            ping: None,
+            from_slot: None,
+        };
+
+        // 发送更新请求
+        control_sender
+            .send(request)
+            .await
+            .map_err(|e| format!("Failed to send update: {}", e))?;
+
+        Ok(())
     }
 
     pub async fn stop(&self) {
@@ -186,56 +266,93 @@ impl YellowstoneGrpc {
         };
 
         println!("📡 Subscribing to stream...");
-        let (_subscribe_tx, mut stream) = client.subscribe_with_request(Some(request)).await
+        let (subscribe_tx, mut stream) = client.subscribe_with_request(Some(request)).await
             .map_err(|e| e.to_string())?;
         println!("✅ Subscribed successfully - Zero Copy Mode");
         println!("👂 Listening for events...");
 
-        let mut msg_count = 0u64;
-        while let Some(message) = stream.next().await {
-            match message {
-                Ok(update_msg) => {
-                    let block_time = update_msg.created_at.unwrap_or_default();
-                    let block_time_us = timestamp_to_microseconds(&block_time);
-                    msg_count += 1;
-                    // if msg_count % 100 == 0 {
-                    //     println!("📨 Received {} messages", msg_count);
-                    // }
+        // 创建控制通道
+        let (control_tx, mut control_rx) = mpsc::channel::<SubscribeRequest>(100);
+        *self.control_tx.lock().await = Some(control_tx);
 
-                    if let Some(update) = update_msg.update_oneof {
-                        let grpc_recv_us = unsafe {
-                            let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-                            libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-                            (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
-                        };
-                        match update {
-                            subscribe_update::UpdateOneof::Transaction(transaction_update) => {
-                                Self::parse_transaction(
-                                    &transaction_update,
-                                    grpc_recv_us,
-                                    Some(block_time_us as i64),
-                                    &queue,
-                                    event_type_filter.as_ref(),
-                                )
-                                .await;
+        // 使用 Arc<Mutex<>> 包装 subscribe_tx 以支持并发发送
+        let subscribe_tx = Arc::new(Mutex::new(subscribe_tx));
+        let subscribe_tx_clone = Arc::clone(&subscribe_tx);
+
+        let mut msg_count = 0u64;
+        loop {
+            tokio::select! {
+                message = stream.next() => {
+                    match message {
+                        Some(Ok(update_msg)) => {
+                            let block_time = update_msg.created_at.unwrap_or_default();
+                            let block_time_us = timestamp_to_microseconds(&block_time);
+                            msg_count += 1;
+                            // if msg_count % 100 == 0 {
+                            //     println!("📨 Received {} messages", msg_count);
+                            // }
+
+                            if let Some(update) = update_msg.update_oneof {
+                                let grpc_recv_us = unsafe {
+                                    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+                                    libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
+                                    (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+                                };
+                                match update {
+                                    subscribe_update::UpdateOneof::Transaction(transaction_update) => {
+                                        Self::parse_transaction(
+                                            &transaction_update,
+                                            grpc_recv_us,
+                                            Some(block_time_us as i64),
+                                            &queue,
+                                            event_type_filter.as_ref(),
+                                        )
+                                        .await;
+                                    }
+                                    subscribe_update::UpdateOneof::Account(account_update) => {
+                                        Self::parse_account(
+                                            &account_update,
+                                            grpc_recv_us,
+                                            Some(block_time_us as i64),
+                                            &queue,
+                                            event_type_filter.as_ref(),
+                                        )
+                                        .await;
+                                    }
+                                    subscribe_update::UpdateOneof::Ping(_) => {
+                                        // 响应 ping 以保持连接活跃
+                                        if let Ok(mut tx) = subscribe_tx_clone.try_lock() {
+                                            let pong_request = SubscribeRequest {
+                                                ping: Some(SubscribeRequestPing { id: 1 }),
+                                                ..Default::default()
+                                            };
+                                            let _ = tx.send(pong_request).await;
+                                        }
+                                    }
+                                    _ => {}
+                                }
                             }
-                            subscribe_update::UpdateOneof::Account(account_update) => {
-                                Self::parse_account(
-                                    &account_update,
-                                    grpc_recv_us,
-                                    Some(block_time_us as i64),
-                                    &queue,
-                                    event_type_filter.as_ref(),
-                                )
-                                .await;
-                            }
-                            _ => {}
+                        }
+                        Some(Err(e)) => {
+                            error!("Stream error: {:?}", e);
+                            println!("❌ Stream error: {:?}", e);
+                            break;
+                        }
+                        None => {
+                            println!("⚠️  Stream ended");
+                            break;
                         }
                     }
                 }
-                Err(e) => {
-                    error!("Stream error: {:?}", e);
-                    println!("❌ Stream error: {:?}", e);
+                Some(update_request) = control_rx.recv() => {
+                    // 接收到动态订阅更新请求
+                    println!("🔄 Updating subscription filters dynamically...");
+                    if let Err(e) = subscribe_tx.lock().await.send(update_request).await {
+                        error!("Failed to send subscription update: {}", e);
+                        println!("❌ Failed to send subscription update: {}", e);
+                        break;
+                    }
+                    println!("✅ Subscription filters updated successfully");
                 }
             }
         }
