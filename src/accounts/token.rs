@@ -2,7 +2,7 @@
 //!
 //! 提供 Token Account 和 Mint 账户的解析功能
 
-use crate::core::events::{EventMetadata, TokenAccountEvent, TokenInfoEvent};
+use crate::core::events::{EventMetadata, TokenAccountEvent};
 use crate::DexEvent;
 use solana_sdk::pubkey::Pubkey;
 use spl_token::solana_program::program_pack::Pack;
@@ -47,34 +47,38 @@ pub fn parse_token_account(account: &AccountData, metadata: EventMetadata) -> Op
     // Try parsing as SPL Token Mint
     if account.data.len() >= Mint::LEN {
         if let Ok(mint) = Mint::unpack_from_slice(&account.data) {
-            let event = TokenInfoEvent {
+            let event = TokenAccountEvent {
                 metadata,
                 pubkey,
                 executable,
                 lamports,
                 owner,
                 rent_epoch,
-                supply: mint.supply,
-                decimals: mint.decimals,
+                amount: None,
+                token_owner: owner, 
+                supply: Some(mint.supply),
+                decimals: Some(mint.decimals),
             };
-            return Some(DexEvent::TokenInfo(event));
+            return Some(DexEvent::TokenAccount(event));
         }
     }
 
     // Try parsing as SPL Token-2022 Mint
     if account.data.len() >= Account2022::LEN {
         if let Ok(mint) = StateWithExtensions::<Mint2022>::unpack(&account.data) {
-            let event = TokenInfoEvent {
+            let event = TokenAccountEvent {
                 metadata,
                 pubkey,
                 executable,
                 lamports,
                 owner,
                 rent_epoch,
-                supply: mint.base.supply,
-                decimals: mint.base.decimals,
+                amount: None,
+                token_owner: owner,
+                supply: Some(mint.base.supply),
+                decimals: Some(mint.base.decimals),
             };
-            return Some(DexEvent::TokenInfo(event));
+            return Some(DexEvent::TokenAccount(event));
         }
     }
 
@@ -96,6 +100,8 @@ pub fn parse_token_account(account: &AccountData, metadata: EventMetadata) -> Op
         rent_epoch,
         amount,
         token_owner: account.owner,
+        supply: None,
+        decimals: None,
     };
 
     Some(DexEvent::TokenAccount(event))

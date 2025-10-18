@@ -1037,6 +1037,8 @@ pub struct TokenAccountEvent {
     pub rent_epoch: u64,
     pub amount: Option<u64>,
     pub token_owner: Pubkey,
+    pub supply: Option<u64>,
+    pub decimals: Option<u8>,
 }
 
 /// Nonce Account Event
@@ -1050,19 +1052,6 @@ pub struct NonceAccountEvent {
     pub rent_epoch: u64,
     pub nonce: String,
     pub authority: String,
-}
-
-/// Token Info Event (for Mint accounts)
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct TokenInfoEvent {
-    pub metadata: EventMetadata,
-    pub pubkey: Pubkey,
-    pub executable: bool,
-    pub lamports: u64,
-    pub owner: Pubkey,
-    pub rent_epoch: u64,
-    pub supply: u64,
-    pub decimals: u8,
 }
 
 // ====================== Orca Whirlpool Events ======================
@@ -1467,9 +1456,6 @@ pub enum DexEvent {
 
     // 区块元数据事件
     BlockMeta(BlockMetaEvent),
-
-    // Token 信息事件
-    TokenInfo(TokenInfoEvent),
 
     // 错误事件
     Error(String),

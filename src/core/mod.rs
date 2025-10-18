@@ -20,7 +20,7 @@ pub use unified_parser::{
 
 pub use crate::accounts::{
     parse_token_account, parse_nonce_account, AccountData,
-    is_nonce_account, is_token_program_account,
+    is_nonce_account,
     parse_account_unified,
 };
 
