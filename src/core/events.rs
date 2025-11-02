@@ -195,6 +195,9 @@ pub struct PumpSwapBuyEvent {
     pub current_sol_volume: u64,
     pub last_update_timestamp: i64,
 
+    // === 额外的信息 ===
+    pub is_pump_pool: bool,
+
     // === 额外账户信息 ===
     pub base_mint: Pubkey,
     pub quote_mint: Pubkey,
@@ -233,6 +236,9 @@ pub struct PumpSwapSellEvent {
     pub coin_creator: Pubkey,
     pub coin_creator_fee_basis_points: u64,
     pub coin_creator_fee: u64,
+
+    // === 额外的信息 ===
+    pub is_pump_pool: bool,
 
     // === 额外账户信息 ===
     pub base_mint: Pubkey,

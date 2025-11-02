@@ -502,6 +502,13 @@ impl YellowstoneGrpc {
                     transaction,
                     &program_invokes,
                 );
+                // 填充其他信息
+                crate::core::common_filler::fill_data(
+                    &mut log_event,
+                    meta,
+                    transaction,
+                    &program_invokes,
+                );
                 let _ = queue.push(log_event);
             }
         }
