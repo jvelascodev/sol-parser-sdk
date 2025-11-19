@@ -24,8 +24,8 @@ static PROGRAM_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b
 static PROGRAM_DATA_FINDER: Lazy<memmem::Finder> =
     Lazy::new(|| memmem::Finder::new(b"Program data: "));
 static PUMPFUN_CREATE_FINDER: Lazy<memmem::Finder> =
-    Lazy::new(|| memmem::Finder::new(b"Program data: GB7IKAUcB3c"));
-static WHIRL_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"whirL"));
+    Lazy::new(|| memmem::Finder::new(b"Program data: G3KpTd7rY3Y"));
+    static WHIRL_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"whirL"));
 static METEORA_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"meteora"));
 static METEORA_LB_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"LB"));
 static METEORA_DLMM_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"DLMM"));

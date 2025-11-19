@@ -160,6 +160,9 @@ pub struct PumpFunCreateTokenEvent {
     pub virtual_sol_reserves: u64,
     pub real_token_reserves: u64,
     pub token_total_supply: u64,
+
+    pub token_program: Pubkey,
+    pub is_mayhem_mode: bool,
 }
 
 /// PumpSwap Buy Event

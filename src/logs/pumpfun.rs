@@ -179,6 +179,12 @@ fn parse_create_event(
     offset += 8;
 
     let token_total_supply = read_u64_le(data, offset)?;
+    offset += 8;
+
+    let token_program = read_pubkey(data, offset).unwrap_or_default();
+    offset += 32;
+
+    let is_mayhem_mode = read_bool(data, offset).unwrap_or_default();
 
     let metadata =
         create_metadata_simple(signature, slot, tx_index, block_time_us, mint, grpc_recv_us);
@@ -197,6 +203,8 @@ fn parse_create_event(
         virtual_sol_reserves,
         real_token_reserves,
         token_total_supply,
+        token_program,
+        is_mayhem_mode,
     }))
 }
 
@@ -444,6 +452,8 @@ fn parse_create_from_text(
         virtual_sol_reserves: 30_000_000_000,
         real_token_reserves: 0,
         token_total_supply: 0,
+        token_program: Pubkey::default(),
+        is_mayhem_mode: false,
     }))
 }
 
