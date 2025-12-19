@@ -77,8 +77,8 @@ git clone https://github.com/0xfnzero/sol-parser-sdk
 使用优化示例测试解析延迟：
 
 ```bash
-# 运行性能测试（需要 sudo 以获得高精度计时）
-sudo cargo run --example basic --release
+# 运行性能测试
+cargo run --example basic --release
 
 # PumpSwap 事件 + MicroBatch 有序模式
 cargo run --example pumpswap_ordered --release
@@ -95,7 +95,7 @@ cargo run --example pumpswap_ordered --release
 
 | 示例 | 说明 | 命令 |
 |---------|-------------|----------|
-| `basic` | 基础 DEX 事件解析，延迟测量 | `sudo cargo run --example basic --release` |
+| `basic` | 基础 DEX 事件解析，延迟测量 | `cargo run --example basic --release` |
 | `pumpswap_ordered` | PumpSwap 事件 + MicroBatch 有序模式 | `cargo run --example pumpswap_ordered --release` |
 | `dynamic_subscription` | 动态更新过滤器（无需重连） | `cargo run --example dynamic_subscription --release` |
 
