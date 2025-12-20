@@ -263,9 +263,15 @@ pub fn parse_log_optimized(
     }
     
     // Step 2: Decode base64 ONCE to stack buffer (compiler auto-vectorized, zero heap allocation)
-    let mut buf = [0u8; 1024];  // Reduced from 2048 to 1024 for better L1 cache utilization
+    let mut buf = [0u8; 2048];  // Increased back to 2048 to prevent buffer overflow panics
     let data_part = &log[data_start..];
     let trimmed = data_part.trim();
+
+    // Validate input size before decoding (base64: 4 chars -> 3 bytes, so max input = (2048/3)*4 = ~2730 chars)
+    // Add safety margin to prevent base64-simd assertion failures
+    if trimmed.len() > 2700 {
+        return None;
+    }
 
     // SIMD-accelerated base64 decoding (AVX2/SSE4/NEON)
     use base64_simd::AsOut;

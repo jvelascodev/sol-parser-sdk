@@ -47,14 +47,20 @@ static BASE64_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"
 /// 零拷贝提取 program data (栈分配，无堆分配)
 ///
 /// 优化: 使用固定大小栈缓冲区，避免 Vec 分配
-/// 缓冲区大小优化为 1KB 以提高 L1 cache 命中率
+/// 缓冲区大小增加到 2KB 以防止 base64-simd 缓冲区溢出panic
 #[inline(always)]
-fn extract_program_data_zero_copy<'a>(log: &'a str, buf: &'a mut [u8; 1024]) -> Option<&'a [u8]> {
+fn extract_program_data_zero_copy<'a>(log: &'a str, buf: &'a mut [u8; 2048]) -> Option<&'a [u8]> {
     let log_bytes = log.as_bytes();
     let pos = BASE64_FINDER.find(log_bytes)?;
 
     let data_part = &log[pos + 14..];
     let trimmed = data_part.trim();
+
+    // Validate input size before decoding (base64: 4 chars -> 3 bytes, so max input = (2048/3)*4 = ~2730 chars)
+    // Add safety margin to prevent base64-simd assertion failures
+    if trimmed.len() > 2700 {
+        return None;
+    }
 
     // SIMD-accelerated base64 decoding (AVX2/SSE4/NEON)
     use base64_simd::AsOut;
@@ -192,8 +198,8 @@ pub fn parse_log(
     #[cfg(feature = "perf-stats")]
     let start = std::time::Instant::now();
 
-    // 使用栈分配的缓冲区 (优化为 1KB 以提高 L1 cache 命中率)
-    let mut buf = [0u8; 1024];
+    // 使用栈分配的缓冲区 (增加到 2KB 以防止 base64-simd 缓冲区溢出)
+    let mut buf = [0u8; 2048];
     let program_data = extract_program_data_zero_copy(log, &mut buf)?;
 
     if program_data.len() < 8 {
