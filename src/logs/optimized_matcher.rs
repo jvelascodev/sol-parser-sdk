@@ -300,6 +300,7 @@ pub fn parse_log_optimized(
             if let Some(ref include_only) = filter.include_only {
                 let wants_supported = include_only.iter().any(|t| matches!(t,
                     EventType::PumpFunTrade | EventType::PumpFunCreate | EventType::PumpFunMigrate |
+                    EventType::PumpFunBuy | EventType::PumpFunSell | EventType::PumpFunBuyExactSolIn |
                     EventType::PumpSwapBuy | EventType::PumpSwapSell | EventType::PumpSwapCreatePool |
                     EventType::PumpSwapLiquidityAdded | EventType::PumpSwapLiquidityRemoved
                 ));
@@ -326,7 +327,29 @@ pub fn parse_log_optimized(
     match discriminator {
         // PumpFun events - use pump module's from_data functions
         discriminators::PUMPFUN_TRADE => {
-            crate::logs::pump::parse_trade_from_data(data, metadata, is_created_buy)
+            let event = crate::logs::pump::parse_trade_from_data(data, metadata, is_created_buy)?;
+            // Secondary filter: check if the specific trade type is wanted
+            if let Some(filter) = event_type_filter {
+                if let Some(ref include_only) = filter.include_only {
+                    // If filter specifies specific PumpFun trade types, check them
+                    let has_specific_filter = include_only.iter().any(|t| matches!(t,
+                        EventType::PumpFunBuy | EventType::PumpFunSell | EventType::PumpFunBuyExactSolIn
+                    ));
+                    if has_specific_filter {
+                        let event_type_matches = match &event {
+                            DexEvent::PumpFunBuy(_) => include_only.contains(&EventType::PumpFunBuy),
+                            DexEvent::PumpFunSell(_) => include_only.contains(&EventType::PumpFunSell),
+                            DexEvent::PumpFunBuyExactSolIn(_) => include_only.contains(&EventType::PumpFunBuyExactSolIn),
+                            DexEvent::PumpFunTrade(_) => include_only.contains(&EventType::PumpFunTrade),
+                            _ => false,
+                        };
+                        if !event_type_matches {
+                            return None;
+                        }
+                    }
+                }
+            }
+            Some(event)
         }
         discriminators::PUMPFUN_CREATE => {
             crate::logs::pump::parse_create_from_data(data, metadata)

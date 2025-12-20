@@ -332,6 +332,12 @@ fn parse_create_event_optimized(
 }
 
 /// 解析 TradeEvent (极限优化)
+///
+/// 根据 ix_name 返回不同的事件类型:
+/// - "buy" -> DexEvent::PumpFunBuy
+/// - "sell" -> DexEvent::PumpFunSell
+/// - "buy_exact_sol_in" -> DexEvent::PumpFunBuyExactSolIn
+/// - 其他/空 -> DexEvent::PumpFunTrade (兼容旧版本)
 #[inline(always)]
 fn parse_trade_event_optimized(
     data: &[u8],
@@ -454,7 +460,7 @@ fn parse_trade_event_optimized(
             grpc_recv_us,
         };
 
-        Some(DexEvent::PumpFunTrade(PumpFunTradeEvent {
+        let trade_event = PumpFunTradeEvent {
             metadata,
             mint,
             sol_amount,
@@ -478,11 +484,19 @@ fn parse_trade_event_optimized(
             total_claimed_tokens,
             current_sol_volume,
             last_update_timestamp,
-            ix_name,
+            ix_name: ix_name.clone(),
             bonding_curve: Pubkey::default(),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: Pubkey::default(),
-        }))
+        };
+
+        // 根据 ix_name 返回不同的事件类型，支持用户过滤特定交易类型
+        match ix_name.as_str() {
+            "buy" => Some(DexEvent::PumpFunBuy(trade_event)),
+            "sell" => Some(DexEvent::PumpFunSell(trade_event)),
+            "buy_exact_sol_in" => Some(DexEvent::PumpFunBuyExactSolIn(trade_event)),
+            _ => Some(DexEvent::PumpFunTrade(trade_event)), // 兼容旧版本或未知类型
+        }
     }
 }
 
@@ -575,6 +589,12 @@ pub fn is_event_type(log: &str, discriminator: u64) -> bool {
 /// Parse PumpFun Trade event from pre-decoded data
 /// 
 /// `data` should be the decoded bytes AFTER the 8-byte discriminator
+/// 
+/// Returns different event types based on ix_name:
+/// - "buy" -> DexEvent::PumpFunBuy
+/// - "sell" -> DexEvent::PumpFunSell
+/// - "buy_exact_sol_in" -> DexEvent::PumpFunBuyExactSolIn
+/// - other/empty -> DexEvent::PumpFunTrade (backward compatible)
 #[inline(always)]
 pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
     unsafe {
@@ -679,7 +699,7 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
             String::new()
         };
 
-        Some(DexEvent::PumpFunTrade(PumpFunTradeEvent {
+        let trade_event = PumpFunTradeEvent {
             metadata,
             mint,
             sol_amount,
@@ -703,11 +723,55 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
             total_claimed_tokens,
             current_sol_volume,
             last_update_timestamp,
-            ix_name,
+            ix_name: ix_name.clone(),
             bonding_curve: Pubkey::default(),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: Pubkey::default(),
-        }))
+        };
+
+        // 根据 ix_name 返回不同的事件类型
+        match ix_name.as_str() {
+            "buy" => Some(DexEvent::PumpFunBuy(trade_event)),
+            "sell" => Some(DexEvent::PumpFunSell(trade_event)),
+            "buy_exact_sol_in" => Some(DexEvent::PumpFunBuyExactSolIn(trade_event)),
+            _ => Some(DexEvent::PumpFunTrade(trade_event)),
+        }
+    }
+}
+
+/// Parse only PumpFun Buy events from pre-decoded data
+/// 
+/// Returns None if the event is not a buy event
+#[inline(always)]
+pub fn parse_buy_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+    let event = parse_trade_from_data(data, metadata, is_created_buy)?;
+    match &event {
+        DexEvent::PumpFunBuy(_) => Some(event),
+        _ => None,
+    }
+}
+
+/// Parse only PumpFun Sell events from pre-decoded data
+/// 
+/// Returns None if the event is not a sell event
+#[inline(always)]
+pub fn parse_sell_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+    let event = parse_trade_from_data(data, metadata, is_created_buy)?;
+    match &event {
+        DexEvent::PumpFunSell(_) => Some(event),
+        _ => None,
+    }
+}
+
+/// Parse only PumpFun BuyExactSolIn events from pre-decoded data
+/// 
+/// Returns None if the event is not a buy_exact_sol_in event
+#[inline(always)]
+pub fn parse_buy_exact_sol_in_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+    let event = parse_trade_from_data(data, metadata, is_created_buy)?;
+    match &event {
+        DexEvent::PumpFunBuyExactSolIn(_) => Some(event),
+        _ => None,
     }
 }
 

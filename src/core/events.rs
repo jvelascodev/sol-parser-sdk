@@ -1431,7 +1431,10 @@ pub struct MeteoraDlmmClaimFeeEvent {
 pub enum DexEvent {
     // PumpFun 事件
     PumpFunCreate(PumpFunCreateTokenEvent), // - 已对接
-    PumpFunTrade(PumpFunTradeEvent),        // - 已对接
+    PumpFunTrade(PumpFunTradeEvent),        // - 已对接 (统一交易事件，包含所有交易类型)
+    PumpFunBuy(PumpFunTradeEvent),          // - 已对接 (仅买入事件，用于过滤)
+    PumpFunSell(PumpFunTradeEvent),         // - 已对接 (仅卖出事件，用于过滤)
+    PumpFunBuyExactSolIn(PumpFunTradeEvent), // - 已对接 (精确SOL买入事件，用于过滤)
     PumpFunMigrate(PumpFunMigrateEvent),    // - 已对接
 
     // PumpSwap 事件

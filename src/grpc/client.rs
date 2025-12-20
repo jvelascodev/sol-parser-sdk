@@ -157,10 +157,11 @@ impl YellowstoneGrpc {
         let mut next_check = Instant::now() + check_interval;
 
         loop {
-            // 超时检查
-            if self.check_timeout(order_mode, &mut slot_buffer, queue, timeout_ms, &mut next_check, check_interval) {
-                continue;
-            }
+            // Periodic timeout check for ordered modes and MicroBatch
+            self.check_timeout(
+                order_mode, &mut slot_buffer, &mut micro_batch, queue,
+                timeout_ms, batch_us, &mut next_check, check_interval
+            );
 
             tokio::select! {
                 msg = stream.next() => {
@@ -204,28 +205,39 @@ impl YellowstoneGrpc {
     fn check_timeout(
         &self,
         mode: OrderMode,
-        buffer: &mut SlotBuffer,
+        slot_buf: &mut SlotBuffer,
+        micro_buf: &mut MicroBatchBuffer,
         queue: &Arc<ArrayQueue<DexEvent>>,
         timeout_ms: u64,
+        batch_us: u64,
         next_check: &mut Instant,
         interval: Duration,
-    ) -> bool {
-        if !matches!(mode, OrderMode::Ordered | OrderMode::StreamingOrdered) {
-            return false;
-        }
+    ) {
         if Instant::now() < *next_check {
-            return false;
+            return;
         }
         *next_check = Instant::now() + interval;
         
-        if buffer.should_timeout(timeout_ms) {
-            let events = match mode {
-                OrderMode::StreamingOrdered => buffer.flush_streaming_timeout(),
-                _ => buffer.flush_all(),
-            };
-            for e in events { let _ = queue.push(e); }
+        match mode {
+            OrderMode::Ordered => {
+                if slot_buf.should_timeout(timeout_ms) {
+                    for e in slot_buf.flush_all() { let _ = queue.push(e); }
+                }
+            }
+            OrderMode::StreamingOrdered => {
+                if slot_buf.should_timeout(timeout_ms) {
+                    for e in slot_buf.flush_streaming_timeout() { let _ = queue.push(e); }
+                }
+            }
+            OrderMode::MicroBatch => {
+                // Periodic flush for MicroBatch mode
+                let now_us = get_timestamp_us();
+                if micro_buf.should_flush(now_us, batch_us) {
+                    for e in micro_buf.flush() { let _ = queue.push(e); }
+                }
+            }
+            OrderMode::Unordered => {}
         }
-        false
     }
 
     fn flush_on_disconnect(&self, mode: OrderMode, buffer: &mut SlotBuffer, queue: &Arc<ArrayQueue<DexEvent>>) {

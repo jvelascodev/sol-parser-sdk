@@ -91,11 +91,13 @@ impl SlotBuffer {
             .unwrap_or(false)
     }
 
-    /// 流式释放：添加事件并返回可释放的连续序列
+    /// Streaming release: add event and return releasable continuous sequence
+    /// NOTE: This mode assumes tx_index is continuous (0,1,2,3...)
+    /// For filtered event streams where tx_index may not be continuous, use MicroBatch mode instead
     pub fn push_streaming(&mut self, slot: u64, tx_index: u64, event: DexEvent) -> Vec<DexEvent> {
         let mut result = Vec::new();
         
-        // 新 slot 到达时，释放所有旧 slot
+        // When new slot arrives, release ALL events from previous slots (sorted)
         if slot > self.current_slot && self.current_slot > 0 {
             let old_slots: Vec<u64> = self.slots.keys().filter(|&&s| s < slot).copied().collect();
             for old_slot in old_slots {
@@ -111,14 +113,15 @@ impl SlotBuffer {
             self.current_slot = slot;
         }
         
-        // 检查是否为期望的 tx_index
+        // Check if this is the expected tx_index (continuous sequence)
         let next_expected = *self.streaming_watermarks.get(&slot).unwrap_or(&0);
         
         if tx_index == next_expected {
+            // Expected index: release immediately
             result.push(event);
             let mut watermark = next_expected + 1;
             
-            // 释放缓冲区中连续的后续事件
+            // Release buffered consecutive events
             if let Some(buffered) = self.slots.get_mut(&slot) {
                 buffered.sort_unstable_by_key(|(idx, _)| *idx);
                 while let Some(pos) = buffered.iter().position(|(idx, _)| *idx == watermark) {
@@ -128,9 +131,10 @@ impl SlotBuffer {
             }
             self.streaming_watermarks.insert(slot, watermark);
         } else if tx_index > next_expected {
+            // Future index: buffer it
             self.slots.entry(slot).or_default().push((tx_index, event));
         }
-        // tx_index < next_expected: 重复事件，忽略
+        // tx_index < next_expected: duplicate event, ignore
         
         if !result.is_empty() {
             self.last_flush_time = Some(Instant::now());

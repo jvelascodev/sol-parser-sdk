@@ -96,8 +96,10 @@ cargo run --example pumpswap_ordered --release
 
 | Example | Description | Command |
 |---------|-------------|----------|
-| `basic` | Basic DEX event parsing with latency measurement | `cargo run --example basic --release` |
-| `pumpswap_ordered` | PumpSwap events with MicroBatch ordering | `cargo run --example pumpswap_ordered --release` |
+| `basic` | Basic PumpFun event parsing with latency measurement | `cargo run --example basic --release` |
+| `pumpswap_ordered` | PumpSwap Buy/Sell/CreatePool with MicroBatch ordering | `cargo run --example pumpswap_ordered --release` |
+| `pump_trade_filter` | PumpFun trade type filtering (Buy/Sell/BuyExactSolIn) - Unordered | `cargo run --example pump_trade_filter --release` |
+| `pump_trade_filter_ordered` | PumpFun trade filtering with MicroBatch ordering (1ms window) | `cargo run --example pump_trade_filter_ordered --release` |
 | `dynamic_subscription` | Dynamic filter updates without reconnecting | `cargo run --example dynamic_subscription --release` |
 
 ### Basic Usage

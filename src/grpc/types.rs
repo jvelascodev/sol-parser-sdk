@@ -230,7 +230,10 @@ pub enum EventType {
     BonkMigrateAmm,
 
     // PumpFun events
-    PumpFunTrade,
+    PumpFunTrade,    // All trade events (backward compatible)
+    PumpFunBuy,      // Buy events only (filter by ix_name)
+    PumpFunSell,     // Sell events only (filter by ix_name)
+    PumpFunBuyExactSolIn, // BuyExactSolIn events only (filter by ix_name)
     PumpFunCreate,
     PumpFunComplete,
     PumpFunMigrate,
@@ -318,7 +321,19 @@ impl EventTypeFilter {
 
     pub fn should_include(&self, event_type: EventType) -> bool {
         if let Some(ref include_only) = self.include_only {
-            return include_only.contains(&event_type);
+            // Direct match
+            if include_only.contains(&event_type) {
+                return true;
+            }
+            // Special case: PumpFunTrade discriminator is shared by Buy/Sell/BuyExactSolIn
+            // If filter includes any of these specific types, allow PumpFunTrade through
+            // (secondary filtering will happen after parsing)
+            if event_type == EventType::PumpFunTrade {
+                return include_only.iter().any(|t| matches!(t,
+                    EventType::PumpFunBuy | EventType::PumpFunSell | EventType::PumpFunBuyExactSolIn
+                ));
+            }
+            return false;
         }
 
         if let Some(ref exclude_types) = self.exclude_types {
@@ -335,6 +350,9 @@ impl EventTypeFilter {
                 matches!(
                     t,
                     EventType::PumpFunTrade
+                        | EventType::PumpFunBuy
+                        | EventType::PumpFunSell
+                        | EventType::PumpFunBuyExactSolIn
                         | EventType::PumpFunCreate
                         | EventType::PumpFunComplete
                         | EventType::PumpFunMigrate
@@ -347,6 +365,9 @@ impl EventTypeFilter {
                 matches!(
                     t,
                     EventType::PumpFunTrade
+                        | EventType::PumpFunBuy
+                        | EventType::PumpFunSell
+                        | EventType::PumpFunBuyExactSolIn
                         | EventType::PumpFunCreate
                         | EventType::PumpFunComplete
                         | EventType::PumpFunMigrate

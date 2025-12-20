@@ -95,8 +95,10 @@ cargo run --example pumpswap_ordered --release
 
 | 示例 | 说明 | 命令 |
 |---------|-------------|----------|
-| `basic` | 基础 DEX 事件解析，延迟测量 | `cargo run --example basic --release` |
-| `pumpswap_ordered` | PumpSwap 事件 + MicroBatch 有序模式 | `cargo run --example pumpswap_ordered --release` |
+| `basic` | 基础 PumpFun 事件解析，延迟测量 | `cargo run --example basic --release` |
+| `pumpswap_ordered` | PumpSwap 买入/卖出/创建池 + MicroBatch 有序模式 | `cargo run --example pumpswap_ordered --release` |
+| `pump_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn）- 无序模式 | `cargo run --example pump_trade_filter --release` |
+| `pump_trade_filter_ordered` | PumpFun 交易过滤 + MicroBatch 有序模式（1ms 窗口） | `cargo run --example pump_trade_filter_ordered --release` |
 | `dynamic_subscription` | 动态更新过滤器（无需重连） | `cargo run --example dynamic_subscription --release` |
 
 ### 基本用法
