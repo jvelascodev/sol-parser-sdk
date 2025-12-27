@@ -24,7 +24,7 @@ fn main() {
 
     // 连接到 Solana RPC
     let rpc_url = std::env::var("SOLANA_RPC_URL")
-        .unwrap_or_else(|_| "http://64.130.37.195:8899".to_string());
+        .unwrap_or_else(|_| "https://solana-rpc.publicnode.com".to_string());
 
     println!("Connecting to: {}", rpc_url);
     let client = RpcClient::new(rpc_url);
