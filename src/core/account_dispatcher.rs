@@ -1,7 +1,9 @@
-//! 账户填充模块 - 主调度器
+//! 账户填充调度器
 //!
-//! 负责从指令账户数据填充 DEX 事件中缺失的账户字段。
-//! 各协议的具体填充逻辑已拆分到 account_fillers/ 子模块。
+//! 主调度器，负责路由所有 DEX 事件到对应的协议填充器。
+//! 从指令账户数据填充事件中缺失的账户字段。
+//!
+//! 各协议的具体填充逻辑在 account_fillers/ 子模块中实现。
 
 use crate::core::events::*;
 use crate::core::account_fillers::{self, AccountGetter};

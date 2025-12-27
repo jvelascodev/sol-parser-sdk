@@ -485,7 +485,7 @@ fn parse_logs(
         if PROGRAM_DATA_FINDER.find(log.as_bytes()).is_none() { continue; }
 
         if let Some(mut e) = crate::logs::parse_log(log, sig, slot, tx_idx, block_us, grpc_us, filter, has_create) {
-            crate::core::account_filler::fill_accounts_from_transaction_data(&mut e, meta, transaction, &invokes);
+            crate::core::account_dispatcher::fill_accounts_from_transaction_data(&mut e, meta, transaction, &invokes);
             crate::core::common_filler::fill_data(&mut e, meta, transaction, &invokes);
             result.push(e);
         }

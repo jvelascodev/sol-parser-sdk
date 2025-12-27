@@ -123,7 +123,7 @@ pub fn parse_instructions_enhanced(
     // 步骤 4: 填充账户上下文
     let mut final_result = Vec::with_capacity(merged.len());
     for mut event in merged {
-        crate::core::account_filler::fill_accounts_with_owned_keys(
+        crate::core::account_dispatcher::fill_accounts_with_owned_keys(
             &mut event,
             meta,
             transaction,
