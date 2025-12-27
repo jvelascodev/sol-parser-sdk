@@ -265,6 +265,10 @@ pub mod pumpfun {
             trade_event.creator_vault =
                 if trade_event.is_buy { get_account(9) } else { get_account(8) };
         }
+        if trade_event.token_program == Pubkey::default() {
+            trade_event.token_program = 
+                if trade_event.is_buy { get_account(8)} else { get_account(9) }
+        }
     }
 
     /// 填充 PumpFun Create 事件账户

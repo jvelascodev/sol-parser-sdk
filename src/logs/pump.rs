@@ -494,6 +494,7 @@ fn parse_trade_event_optimized(
             bonding_curve: Pubkey::default(),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: Pubkey::default(),
+            token_program: Pubkey::default(),
         };
 
         // 根据 ix_name 返回不同的事件类型，支持用户过滤特定交易类型
@@ -733,6 +734,7 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
             bonding_curve: Pubkey::default(),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: Pubkey::default(),
+            token_program: Pubkey::default(),
         };
 
         // 根据 ix_name 返回不同的事件类型

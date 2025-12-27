@@ -114,6 +114,7 @@ pub struct PumpFunTradeEvent {
     pub bonding_curve: Pubkey,            // 3
     pub associated_bonding_curve: Pubkey, // 4
     // pub associated_user: Pubkey,         // 5
+    pub token_program: Pubkey, // sell - 9 / buy - 8
     pub creator_vault: Pubkey, // sell - 8 / buy - 9
 }
 
