@@ -26,7 +26,7 @@ pub fn is_raydium_cpmm_log(log: &str) -> bool {
 }
 
 /// 主要的 Raydium CPMM 日志解析函数
-#[inline]
+#[inline(always)]  // 零延迟优化：内联热路径
 pub fn parse_log(log: &str, signature: Signature, slot: u64, tx_index: u64, block_time_us: Option<i64>, grpc_recv_us: i64) -> Option<DexEvent> {
     parse_structured_log(log, signature, slot, tx_index, block_time_us, grpc_recv_us)
 }

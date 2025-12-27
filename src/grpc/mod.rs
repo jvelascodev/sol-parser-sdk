@@ -11,6 +11,7 @@ pub mod client;
 pub mod config;
 pub mod event_parser;
 pub mod filter;
+pub mod instruction_parser; // 增强的 instruction 解析器
 pub mod program_ids;
 pub mod types;
 

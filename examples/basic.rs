@@ -2,6 +2,7 @@ use sol_parser_sdk::grpc::{
     AccountFilter, ClientConfig, EventType, EventTypeFilter, Protocol, TransactionFilter,
     YellowstoneGrpc,
 };
+use sol_parser_sdk::core::now_micros;  // 使用 SDK 的高性能时钟
 use sol_parser_sdk::DexEvent;
 
 #[tokio::main]
@@ -51,8 +52,13 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
     println!("🎧 Starting subscription...");
     println!("🔍 Monitoring programs for DEX events...");
 
-    // 只解析 PumpFun Trade 事件
-    let event_filter = EventTypeFilter::include_only(vec![EventType::PumpFunTrade, EventType::PumpFunCreate]);
+    // 订阅 PumpFun 交易事件（Buy, Sell）和 Create 事件
+    let event_filter = EventTypeFilter::include_only(vec![
+        EventType::PumpFunBuy,
+        EventType::PumpFunSell,
+        EventType::PumpFunBuyExactSolIn,
+        EventType::PumpFunCreate,
+    ]);
 
     // 使用无锁 ArrayQueue（零拷贝模式）
     let queue = grpc.subscribe_dex_events(
@@ -71,17 +77,42 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                 spin_count = 0; // 重置自旋计数
 
                 // 计算从gRPC接收到队列接收的耗时
-                let queue_recv_us = unsafe {
-                    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-                    libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-                    (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
-                };
+                // 使用与 SDK 相同的时钟源
+                let queue_recv_us = now_micros();
 
                 match &event {
-                    // pumpfun
+                    // pumpfun 交易事件
+                    DexEvent::PumpFunBuy(e) => {
+                        let latency_us = queue_recv_us - e.metadata.grpc_recv_us;
+                        println!("\n📊 PumpFun Buy Event");
+                        println!("gRPC接收时间: {} μs", e.metadata.grpc_recv_us);
+                        println!("事件接收时间: {} μs", queue_recv_us);
+                        println!("事件解析耗时: {} μs", latency_us);
+                        println!("================================================");
+                        println!("{:?}", event);
+                    }
+                    DexEvent::PumpFunSell(e) => {
+                        let latency_us = queue_recv_us - e.metadata.grpc_recv_us;
+                        println!("\n📊 PumpFun Sell Event");
+                        println!("gRPC接收时间: {} μs", e.metadata.grpc_recv_us);
+                        println!("事件接收时间: {} μs", queue_recv_us);
+                        println!("事件解析耗时: {} μs", latency_us);
+                        println!("================================================");
+                        println!("{:?}", event);
+                    }
+                    DexEvent::PumpFunBuyExactSolIn(e) => {
+                        let latency_us = queue_recv_us - e.metadata.grpc_recv_us;
+                        println!("\n📊 PumpFun BuyExactSolIn Event");
+                        println!("gRPC接收时间: {} μs", e.metadata.grpc_recv_us);
+                        println!("事件接收时间: {} μs", queue_recv_us);
+                        println!("事件解析耗时: {} μs", latency_us);
+                        println!("================================================");
+                        println!("{:?}", event);
+                    }
                     DexEvent::PumpFunTrade(e) => {
                         let latency_us = queue_recv_us - e.metadata.grpc_recv_us;
-                        println!("\ngRPC接收时间: {} μs", e.metadata.grpc_recv_us);
+                        println!("\n📊 PumpFun Trade Event (Generic)");
+                        println!("gRPC接收时间: {} μs", e.metadata.grpc_recv_us);
                         println!("事件接收时间: {} μs", queue_recv_us);
                         println!("事件解析耗时: {} μs", latency_us);
                         println!("================================================");
@@ -89,7 +120,8 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     DexEvent::PumpFunCreate(e) => {
                         let latency_us = queue_recv_us - e.metadata.grpc_recv_us;
-                        println!("\ngRPC接收时间: {} μs", e.metadata.grpc_recv_us);
+                        println!("\n📊 PumpFun Create Event");
+                        println!("gRPC接收时间: {} μs", e.metadata.grpc_recv_us);
                         println!("事件接收时间: {} μs", queue_recv_us);
                         println!("事件解析耗时: {} μs", latency_us);
                         println!("================================================");

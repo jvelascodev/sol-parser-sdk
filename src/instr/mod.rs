@@ -14,12 +14,20 @@ pub mod raydium_clmm;
 pub mod raydium_cpmm;
 pub mod raydium_launchpad;
 pub mod utils;
+
+// Inner instruction 解析器（16字节 discriminator）
+pub mod inner_common;        // 通用零拷贝读取函数
+pub mod pump_inner;          // PumpFun inner instruction
+pub mod pump_amm_inner;      // PumpSwap inner instruction
+pub mod raydium_clmm_inner;  // Raydium CLMM inner instruction
+pub mod all_inner;           // 其他所有协议的 inner instruction（统一文件）
 use crate::grpc::types::{EventType, EventTypeFilter};
 use crate::logs::perf_hints::unlikely;
 
 // 重新导出主要解析函数
 pub use meteora_damm::parse_instruction as parse_meteora_damm_instruction;
 pub use pump::parse_instruction as parse_pumpfun_instruction;
+pub use pump_amm::parse_instruction as parse_pumpswap_instruction;
 
 // 重新导出工具函数
 pub use utils::*;
@@ -81,6 +89,20 @@ pub fn parse_instruction_unified(
             tx_index,
             block_time_us,
             grpc_recv_us,
+        );
+    }
+    // PumpSwap (Pump AMM)
+    else if *program_id == PUMPSWAP_PROGRAM_ID {
+        if event_type_filter.is_some() && !event_type_filter.unwrap().includes_pumpswap() {
+            return None;
+        }
+        return parse_pumpswap_instruction(
+            instruction_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
         );
     }
     // Meteora DAMM

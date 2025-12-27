@@ -27,21 +27,45 @@ pub mod discriminators {
 pub const PROGRAM_ID_PUBKEY: Pubkey = program_ids::PUMPSWAP_PROGRAM_ID;
 
 /// Main PumpSwap instruction parser
-/// 
-/// Note: Full event data (amounts, fees, etc.) is parsed from logs.
-/// Instruction parsing returns None to avoid duplicate events.
+///
+/// Parses main instructions to extract account information.
+/// This will be merged with inner instruction events to form complete events.
 pub fn parse_instruction(
-    _instruction_data: &[u8],
-    _accounts: &[Pubkey],
-    _signature: Signature,
-    _slot: u64,
-    _tx_index: u64,
-    _block_time_us: Option<i64>,
+    instruction_data: &[u8],
+    accounts: &[Pubkey],
+    signature: Signature,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
 ) -> Option<DexEvent> {
-    // All PumpSwap events (BuyEvent, SellEvent, CreatePoolEvent, DepositEvent, WithdrawEvent)
-    // are parsed from logs which contain complete execution results.
-    // Returning None here avoids duplicate events and improves performance.
-    None
+    // Check minimum data length for discriminator
+    if instruction_data.len() < 8 {
+        return None;
+    }
+
+    // Extract 8-byte discriminator
+    let discriminator: [u8; 8] = instruction_data[0..8].try_into().ok()?;
+    let data = &instruction_data[8..];
+
+    // Route based on discriminator
+    match discriminator {
+        discriminators::BUY | discriminators::BUY_EXACT_QUOTE_IN => {
+            parse_buy_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        }
+        discriminators::SELL => {
+            parse_sell_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        }
+        discriminators::CREATE_POOL => {
+            parse_create_pool_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        }
+        discriminators::DEPOSIT => {
+            parse_deposit_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        }
+        discriminators::WITHDRAW => {
+            parse_withdraw_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        }
+        _ => None,
+    }
 }
 
 /// Parse buy/buy_exact_quote_in instruction

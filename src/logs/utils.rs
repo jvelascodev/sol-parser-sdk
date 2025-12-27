@@ -100,8 +100,25 @@ pub fn read_pubkey(data: &[u8], offset: usize) -> Option<Pubkey> {
         })
 }
 
-/// 从字节数组中读取字符串
+/// 从字节数组中读取字符串（分配版本，向后兼容）
 pub fn read_string(data: &[u8], offset: usize) -> Option<(String, usize)> {
+    let (string_ref, consumed) = read_string_ref(data, offset)?;
+    Some((string_ref.to_string(), consumed))
+}
+
+/// 从字节数组中读取字符串引用（零拷贝版本）
+///
+/// ## 零延迟优化
+/// 返回 &str 引用而不是 String，避免 50-100ns 的堆分配开销
+///
+/// ## 用法
+/// ```ignore
+/// let (name_ref, consumed) = read_string_ref(data, offset)?;
+/// // 直接使用引用，无需分配
+/// println!("Name: {}", name_ref);
+/// ```
+#[inline(always)]  // 零延迟优化：内联热路径
+pub fn read_string_ref(data: &[u8], offset: usize) -> Option<(&str, usize)> {
     if data.len() < offset + 4 {
         return None;
     }
@@ -112,9 +129,8 @@ pub fn read_string(data: &[u8], offset: usize) -> Option<(String, usize)> {
     }
 
     let string_bytes = &data[offset + 4..offset + 4 + len];
-    // 使用 from_utf8_lossy 避免额外的错误处理和内存分配
-    let string = std::str::from_utf8(string_bytes).ok()?.to_string();
-    Some((string, 4 + len))
+    let string_ref = std::str::from_utf8(string_bytes).ok()?;  // 零拷贝
+    Some((string_ref, 4 + len))
 }
 
 /// 读取布尔值
@@ -194,17 +210,29 @@ pub mod text_parser {
         }
     }
 
-    /// 从文本中提取字段值
+    /// 从文本中提取字段值（分配版本，向后兼容）
     pub fn extract_text_field(text: &str, field: &str) -> Option<String> {
-        if let Some(start) = text.find(&format!("{}:", field)) {
-            let after_colon = &text[start + field.len() + 1..];
-            if let Some(end) = after_colon.find(',').or_else(|| after_colon.find(' ')) {
-                Some(after_colon[..end].trim().to_string())
-            } else {
-                Some(after_colon.trim().to_string())
-            }
+        extract_text_field_ref(text, field).map(|s| s.to_string())
+    }
+
+    /// 从文本中提取字段值引用（零拷贝版本）
+    ///
+    /// ## 零延迟优化
+    /// 返回 &str 引用而不是 String，避免 50-100ns 的堆分配开销
+    ///
+    /// ## 用法
+    /// ```ignore
+    /// let value_ref = extract_text_field_ref(log, "amount")?;
+    /// let amount: u64 = value_ref.parse().ok()?;
+    /// ```
+    #[inline(always)]  // 零延迟优化：内联热路径
+    pub fn extract_text_field_ref<'a>(text: &'a str, field: &str) -> Option<&'a str> {
+        let start = text.find(&format!("{}:", field))?;
+        let after_colon = &text[start + field.len() + 1..];
+        if let Some(end) = after_colon.find(',').or_else(|| after_colon.find(' ')) {
+            Some(after_colon[..end].trim())
         } else {
-            None
+            Some(after_colon.trim())
         }
     }
 
