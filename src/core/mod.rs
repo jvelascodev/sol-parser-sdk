@@ -10,6 +10,7 @@
 pub mod events;          // 事件定义
 pub mod unified_parser;  // 统一解析器 - 单一入口
 pub mod account_filler;  // 账户填充器 - 从指令数据填充事件账户
+pub mod account_fillers; // 账户填充器子模块 - 按协议拆分
 pub mod common_filler;
 pub mod merger;          // 事件合并器 - instruction + inner instruction
 pub mod clock;           // 高性能时钟 - 微秒级时间戳获取
