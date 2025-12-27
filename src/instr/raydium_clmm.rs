@@ -8,12 +8,15 @@ use super::utils::*;
 use super::program_ids;
 
 /// Raydium CLMM discriminator 常量
+/// 参考: solana-streamer/src/streaming/event_parser/protocols/raydium_clmm/events.rs
 pub mod discriminators {
     pub const SWAP: [u8; 8] = [248, 198, 158, 145, 225, 117, 135, 200];
-    pub const INCREASE_LIQUIDITY: [u8; 8] = [133, 29, 89, 223, 69, 238, 176, 10];
-    pub const DECREASE_LIQUIDITY: [u8; 8] = [160, 38, 208, 111, 104, 91, 44, 1];
+    pub const SWAP_V2: [u8; 8] = [43, 4, 237, 11, 26, 201, 30, 98];
+    pub const INCREASE_LIQUIDITY_V2: [u8; 8] = [133, 29, 89, 223, 69, 238, 176, 10];
+    pub const DECREASE_LIQUIDITY_V2: [u8; 8] = [58, 127, 188, 62, 79, 82, 196, 96];  // ✅ 修复：使用 V2 discriminator
     pub const CREATE_POOL: [u8; 8] = [233, 146, 209, 142, 207, 104, 64, 188];
-    pub const OPEN_POSITION: [u8; 8] = [135, 128, 47, 77, 15, 152, 240, 49];
+    pub const OPEN_POSITION_V2: [u8; 8] = [77, 184, 74, 214, 112, 86, 241, 199];
+    pub const OPEN_POSITION_WITH_TOKEN_22_NFT: [u8; 8] = [77, 255, 174, 82, 125, 29, 201, 46];
     pub const CLOSE_POSITION: [u8; 8] = [123, 134, 81, 0, 49, 68, 98, 98];
 }
 
@@ -40,17 +43,23 @@ pub fn parse_instruction(
         discriminators::SWAP => {
             parse_swap_instruction(data, accounts, signature, slot, tx_index, block_time_us)
         },
-        discriminators::INCREASE_LIQUIDITY => {
-            parse_increase_liquidity_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        discriminators::SWAP_V2 => {
+            parse_swap_v2_instruction(data, accounts, signature, slot, tx_index, block_time_us)
         },
-        discriminators::DECREASE_LIQUIDITY => {
-            parse_decrease_liquidity_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        discriminators::INCREASE_LIQUIDITY_V2 => {
+            parse_increase_liquidity_v2_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        },
+        discriminators::DECREASE_LIQUIDITY_V2 => {
+            parse_decrease_liquidity_v2_instruction(data, accounts, signature, slot, tx_index, block_time_us)
         },
         discriminators::CREATE_POOL => {
             parse_create_pool_instruction(data, accounts, signature, slot, tx_index, block_time_us)
         },
-        discriminators::OPEN_POSITION => {
-            parse_open_position_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        discriminators::OPEN_POSITION_V2 => {
+            parse_open_position_v2_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        },
+        discriminators::OPEN_POSITION_WITH_TOKEN_22_NFT => {
+            parse_open_position_with_token_22_nft_instruction(data, accounts, signature, slot, tx_index, block_time_us)
         },
         discriminators::CLOSE_POSITION => {
             parse_close_position_instruction(data, accounts, signature, slot, tx_index, block_time_us)
@@ -110,8 +119,21 @@ fn parse_swap_instruction(
     }))
 }
 
-/// 解析增加流动性指令
-fn parse_increase_liquidity_instruction(
+/// 解析 Swap V2 指令（支持 Token2022）
+fn parse_swap_v2_instruction(
+    data: &[u8],
+    accounts: &[Pubkey],
+    signature: Signature,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
+) -> Option<DexEvent> {
+    // SwapV2 与 Swap 参数相同，只是支持 Token2022
+    parse_swap_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+}
+
+/// 解析增加流动性 V2 指令
+fn parse_increase_liquidity_v2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
     signature: Signature,
@@ -135,6 +157,7 @@ fn parse_increase_liquidity_instruction(
     Some(DexEvent::RaydiumClmmIncreaseLiquidity(RaydiumClmmIncreaseLiquidityEvent {
         metadata,
         pool,
+        position_nft_mint: get_account(accounts, 1).unwrap_or_default(),
         user: get_account(accounts, 2).unwrap_or_default(),
         liquidity,
         amount0_max: amount_0_max,
@@ -142,8 +165,8 @@ fn parse_increase_liquidity_instruction(
     }))
 }
 
-/// 解析减少流动性指令
-fn parse_decrease_liquidity_instruction(
+/// 解析减少流动性 V2 指令
+fn parse_decrease_liquidity_v2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
     signature: Signature,
@@ -167,7 +190,8 @@ fn parse_decrease_liquidity_instruction(
     Some(DexEvent::RaydiumClmmDecreaseLiquidity(RaydiumClmmDecreaseLiquidityEvent {
         metadata,
         pool,
-        user: get_account(accounts, 1).unwrap_or_default(),
+        position_nft_mint: get_account(accounts, 1).unwrap_or_default(),
+        user: get_account(accounts, 2).unwrap_or_default(),
         liquidity,
         amount0_min: amount_0_min,
         amount1_min: amount_1_min,
@@ -196,6 +220,10 @@ fn parse_create_pool_instruction(
     Some(DexEvent::RaydiumClmmCreatePool(RaydiumClmmCreatePoolEvent {
         metadata,
         pool,
+        token_0_mint: get_account(accounts, 2).unwrap_or_default(),
+        token_1_mint: get_account(accounts, 3).unwrap_or_default(),
+        tick_spacing: 0,  // 从主指令解析
+        fee_rate: 0,      // 从主指令解析
         creator: get_account(accounts, 1).unwrap_or_default(),
         sqrt_price_x64,
         open_time,
@@ -265,4 +293,29 @@ fn parse_close_position_instruction(
         user: get_account(accounts, 1).unwrap_or_default(),
         position_nft_mint: get_account(accounts, 2).unwrap_or_default(),
     }))
+}
+/// 解析打开仓位 V2 指令
+fn parse_open_position_v2_instruction(
+    data: &[u8],
+    accounts: &[Pubkey],
+    signature: Signature,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
+) -> Option<DexEvent> {
+    // V2 版本与原版参数相同
+    parse_open_position_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+}
+
+/// 解析打开仓位（Token22 NFT）指令
+fn parse_open_position_with_token_22_nft_instruction(
+    data: &[u8],
+    accounts: &[Pubkey],
+    signature: Signature,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
+) -> Option<DexEvent> {
+    // Token22 NFT 版本与 V2 参数相同
+    parse_open_position_v2_instruction(data, accounts, signature, slot, tx_index, block_time_us)
 }

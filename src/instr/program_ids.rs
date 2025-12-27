@@ -13,8 +13,8 @@ pub const PUMPFUN_PROGRAM_ID: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ
 /// Bonk program ID as Pubkey constant
 pub const BONK_PROGRAM_ID: Pubkey = pubkey!("DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1");
 
-/// PumpSwap program ID as Pubkey constant (same as PumpFun)
-pub const PUMPSWAP_PROGRAM_ID: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+/// PumpSwap program ID as Pubkey constant
+pub const PUMPSWAP_PROGRAM_ID: Pubkey = pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA");
 
 /// Raydium CLMM program ID as Pubkey constant
 /// Note: Original string was too long, using corrected version

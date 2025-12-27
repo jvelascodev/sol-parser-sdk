@@ -12,14 +12,20 @@ readme = "README.md"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-# [[bench]]
-# name = "pumpfun_parsing"
-# harness = false
+[[bench]]
+name = "zero_latency_optimizations"
+harness = false
 
 [features]
-default = []
-perf-stats = []  # 启用性能统计
-ultra-perf = []  # 极限性能模式（启用所有 unsafe 优化）
+default = ["parse-borsh"]  # 默认使用 Borsh 解析器（类型安全，易维护）
+
+# 解析器插件选择（互斥，只能选择一个）
+parse-borsh = []      # Borsh 反序列化解析器（推荐）：类型安全、代码简洁、易维护
+parse-zero-copy = []  # 零拷贝解析器（高性能）：最快、零拷贝、适合超高频场景
+
+# 其他功能
+perf-stats = []   # 启用性能统计
+ultra-perf = []   # 极限性能模式（启用所有 unsafe 优化）
 
 [dependencies]
 solana-sdk = "3.0.0"
@@ -87,6 +93,7 @@ wide = "0.7"
 spl-token = "8.0.0"
 spl-token-2022 = "9.0.0"
 libc = "0.2"
+smallvec = "1.13"  # 零延迟优化：栈分配小数组
 
 [dev-dependencies]
 criterion = { version = "0.7.0", features = ["html_reports"] }

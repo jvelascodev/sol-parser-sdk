@@ -67,9 +67,22 @@
 
 ### 安装
 
-```shell
+克隆仓库：
+
+```bash
 cd your_project_dir
 git clone https://github.com/0xfnzero/sol-parser-sdk
+```
+
+在 `Cargo.toml` 中添加：
+
+```toml
+[dependencies]
+# 默认：Borsh 解析器
+sol-parser-sdk = { path = "../sol-parser-sdk" }
+
+# 或：零拷贝解析器（最高性能）
+sol-parser-sdk = { path = "../sol-parser-sdk", default-features = false, features = ["parse-zero-copy"] }
 ```
 
 ### 性能测试
@@ -77,8 +90,11 @@ git clone https://github.com/0xfnzero/sol-parser-sdk
 使用优化示例测试解析延迟：
 
 ```bash
-# 运行性能测试
-cargo run --example basic --release
+# PumpFun 详细性能指标
+cargo run --example pumpfun_with_metrics --release
+
+# PumpSwap 超低延迟测试
+cargo run --example pumpswap_low_latency --release
 
 # PumpSwap 事件 + MicroBatch 有序模式
 cargo run --example pumpswap_ordered --release
@@ -86,19 +102,24 @@ cargo run --example pumpswap_ordered --release
 # 预期输出：
 # gRPC接收时间: 1234567890 μs
 # 事件接收时间: 1234567900 μs
-# 事件解析耗时: 10 μs  <-- 超低延迟！
+# 延迟时间: 10 μs  <-- 超低延迟！
 ```
-
-**为什么需要 sudo？** 示例使用 `libc::clock_gettime(CLOCK_REALTIME)` 获取微秒级精度计时，在某些系统上可能需要提升权限。
 
 ### 示例列表
 
 | 示例 | 说明 | 命令 |
 |---------|-------------|----------|
-| `basic` | 基础 PumpFun 事件解析，延迟测量 | `cargo run --example basic --release` |
+| **PumpFun 示例** |
+| `pumpfun_with_metrics` | PumpFun 事件解析 + 详细性能指标 | `cargo run --example pumpfun_with_metrics --release` |
+| `pumpfun_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn）- 无序模式 | `cargo run --example pumpfun_trade_filter --release` |
+| `pumpfun_trade_filter_ordered` | PumpFun 交易过滤 + StreamingOrdered 有序模式 | `cargo run --example pumpfun_trade_filter_ordered --release` |
+| `pumpfun_quick_test` | PumpFun 快速连接测试（接收前 10 个事件） | `cargo run --example pumpfun_quick_test --release` |
+| **PumpSwap 示例** |
+| `pumpswap_low_latency` | PumpSwap 超低延迟测试（无序，完整事件数据） | `cargo run --example pumpswap_low_latency --release` |
 | `pumpswap_ordered` | PumpSwap 买入/卖出/创建池 + MicroBatch 有序模式 | `cargo run --example pumpswap_ordered --release` |
-| `pump_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn）- 无序模式 | `cargo run --example pump_trade_filter --release` |
-| `pump_trade_filter_ordered` | PumpFun 交易过滤 + MicroBatch 有序模式（1ms 窗口） | `cargo run --example pump_trade_filter_ordered --release` |
+| `parse_pumpswap_tx` | 从 RPC 解析特定 PumpSwap 交易 | `cargo run --example parse_pumpswap_tx --release` |
+| `debug_pumpswap_tx` | 调试 PumpSwap 交易解析 | `cargo run --example debug_pumpswap_tx --release` |
+| **工具示例** |
 | `dynamic_subscription` | 动态更新过滤器（无需重连） | `cargo run --example dynamic_subscription --release` |
 
 ### 基本用法

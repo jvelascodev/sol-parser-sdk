@@ -67,39 +67,59 @@
 
 ### Installation
 
-```shell
+Clone the repository:
+
+```bash
 cd your_project_dir
 git clone https://github.com/0xfnzero/sol-parser-sdk
 ```
 
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+# Default: Borsh parser
+sol-parser-sdk = { path = "../sol-parser-sdk" }
+
+# Or: Zero-copy parser (maximum performance)
+sol-parser-sdk = { path = "../sol-parser-sdk", default-features = false, features = ["parse-zero-copy"] }
+```
+
 ### Performance Testing
 
-Test parsing latency with the optimized example:
+Test parsing latency with the optimized examples:
 
 ```bash
-# Run performance test (requires sudo for high-precision timing)
-cargo run --example basic --release
+# PumpFun with detailed metrics
+cargo run --example pumpfun_with_metrics --release
 
-# PumpSwap events with MicroBatch ordering
+# PumpSwap ultra-low latency test
+cargo run --example pumpswap_low_latency --release
+
+# PumpSwap with MicroBatch ordering
 cargo run --example pumpswap_ordered --release
 
 # Expected output:
-# gRPC recv time: 1234567890 μs
-# Event recv time: 1234567900 μs
-# Parse latency: 10 μs  <-- Ultra-low latency!
-
+# gRPC接收时间: 1234567890 μs
+# 事件接收时间: 1234567900 μs
+# 延迟时间: 10 μs  <-- Ultra-low latency!
 ```
-
-**Why sudo?** The example uses `libc::clock_gettime(CLOCK_REALTIME)` for microsecond-precision timing, which may require elevated permissions on some systems.
 
 ### Examples
 
 | Example | Description | Command |
 |---------|-------------|----------|
-| `basic` | Basic PumpFun event parsing with latency measurement | `cargo run --example basic --release` |
+| **PumpFun Examples** |
+| `pumpfun_with_metrics` | PumpFun event parsing with detailed performance metrics | `cargo run --example pumpfun_with_metrics --release` |
+| `pumpfun_trade_filter` | PumpFun trade type filtering (Buy/Sell/BuyExactSolIn) - Unordered | `cargo run --example pumpfun_trade_filter --release` |
+| `pumpfun_trade_filter_ordered` | PumpFun trade filtering with StreamingOrdered mode | `cargo run --example pumpfun_trade_filter_ordered --release` |
+| `pumpfun_quick_test` | Quick PumpFun connection test (receives first 10 events) | `cargo run --example pumpfun_quick_test --release` |
+| **PumpSwap Examples** |
+| `pumpswap_low_latency` | PumpSwap ultra-low latency testing (Unordered, full event data) | `cargo run --example pumpswap_low_latency --release` |
 | `pumpswap_ordered` | PumpSwap Buy/Sell/CreatePool with MicroBatch ordering | `cargo run --example pumpswap_ordered --release` |
-| `pump_trade_filter` | PumpFun trade type filtering (Buy/Sell/BuyExactSolIn) - Unordered | `cargo run --example pump_trade_filter --release` |
-| `pump_trade_filter_ordered` | PumpFun trade filtering with MicroBatch ordering (1ms window) | `cargo run --example pump_trade_filter_ordered --release` |
+| `parse_pumpswap_tx` | Parse specific PumpSwap transaction from RPC | `cargo run --example parse_pumpswap_tx --release` |
+| `debug_pumpswap_tx` | Debug PumpSwap transaction parsing | `cargo run --example debug_pumpswap_tx --release` |
+| **Utility Examples** |
 | `dynamic_subscription` | Dynamic filter updates without reconnecting | `cargo run --example dynamic_subscription --release` |
 
 ### Basic Usage

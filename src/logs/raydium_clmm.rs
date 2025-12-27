@@ -154,7 +154,8 @@ fn parse_increase_liquidity_event(
     Some(DexEvent::RaydiumClmmIncreaseLiquidity(RaydiumClmmIncreaseLiquidityEvent {
         metadata,
         pool: pool_state,
-        user: position_nft_mint, // Use NFT mint as user for now
+        position_nft_mint,
+        user: Pubkey::default(), // TODO: extract from instruction accounts
         liquidity,
         amount0_max,
         amount1_max,
@@ -191,7 +192,8 @@ fn parse_decrease_liquidity_event(
     Some(DexEvent::RaydiumClmmDecreaseLiquidity(RaydiumClmmDecreaseLiquidityEvent {
         metadata,
         pool: pool_state,
-        user: position_nft_mint, // Use NFT mint as user for now
+        position_nft_mint,
+        user: Pubkey::default(), // TODO: extract from instruction accounts
         liquidity,
         amount0_min,
         amount1_min,
@@ -225,6 +227,10 @@ fn parse_create_pool_event(
     Some(DexEvent::RaydiumClmmCreatePool(RaydiumClmmCreatePoolEvent {
         metadata,
         pool: pool_state,
+        token_0_mint: Pubkey::default(), // TODO: extract from pool account data
+        token_1_mint: Pubkey::default(), // TODO: extract from pool account data
+        tick_spacing: 0, // TODO: extract from pool account data
+        fee_rate: 0,     // TODO: extract from pool account data
         creator,
         sqrt_price_x64,
         open_time,
@@ -354,6 +360,7 @@ fn parse_increase_liquidity_from_text(
     Some(DexEvent::RaydiumClmmIncreaseLiquidity(RaydiumClmmIncreaseLiquidityEvent {
         metadata,
         pool: Pubkey::default(),
+        position_nft_mint: Pubkey::default(),
         user: Pubkey::default(),
         liquidity: extract_number_from_text(log, "liquidity").unwrap_or(1_000_000) as u128,
         amount0_max: extract_number_from_text(log, "amount0_max").unwrap_or(1_000_000),
@@ -377,6 +384,7 @@ fn parse_decrease_liquidity_from_text(
     Some(DexEvent::RaydiumClmmDecreaseLiquidity(RaydiumClmmDecreaseLiquidityEvent {
         metadata,
         pool: Pubkey::default(),
+        position_nft_mint: Pubkey::default(),
         user: Pubkey::default(),
         liquidity: extract_number_from_text(log, "liquidity").unwrap_or(1_000_000) as u128,
         amount0_min: extract_number_from_text(log, "amount0_min").unwrap_or(1_000_000),
@@ -400,6 +408,10 @@ fn parse_create_pool_from_text(
     Some(DexEvent::RaydiumClmmCreatePool(RaydiumClmmCreatePoolEvent {
         metadata,
         pool: Pubkey::default(),
+        token_0_mint: Pubkey::default(),
+        token_1_mint: Pubkey::default(),
+        tick_spacing: 0,
+        fee_rate: 0,
         creator: Pubkey::default(),
         sqrt_price_x64: 0,
         open_time: 0,
@@ -494,6 +506,7 @@ pub fn parse_increase_liquidity_from_data(data: &[u8], metadata: EventMetadata) 
     Some(DexEvent::RaydiumClmmIncreaseLiquidity(RaydiumClmmIncreaseLiquidityEvent {
         metadata,
         pool,
+        position_nft_mint: Pubkey::default(), // Not available in this data format
         user,
         liquidity,
         amount0_max,
@@ -523,6 +536,7 @@ pub fn parse_decrease_liquidity_from_data(data: &[u8], metadata: EventMetadata) 
     Some(DexEvent::RaydiumClmmDecreaseLiquidity(RaydiumClmmDecreaseLiquidityEvent {
         metadata,
         pool,
+        position_nft_mint: Pubkey::default(), // Not available in this data format
         user,
         liquidity,
         amount0_min,
@@ -549,6 +563,10 @@ pub fn parse_create_pool_from_data(data: &[u8], metadata: EventMetadata) -> Opti
     Some(DexEvent::RaydiumClmmCreatePool(RaydiumClmmCreatePoolEvent {
         metadata,
         pool,
+        token_0_mint: Pubkey::default(), // Not available in this data format
+        token_1_mint: Pubkey::default(), // Not available in this data format
+        tick_spacing: 0, // Not available in this data format
+        fee_rate: 0,     // Not available in this data format
         creator,
         sqrt_price_x64,
         open_time,

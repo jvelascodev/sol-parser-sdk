@@ -11,6 +11,9 @@ pub mod events;          // 事件定义
 pub mod unified_parser;  // 统一解析器 - 单一入口
 pub mod account_filler;  // 账户填充器 - 从指令数据填充事件账户
 pub mod common_filler;
+pub mod merger;          // 事件合并器 - instruction + inner instruction
+pub mod clock;           // 高性能时钟 - 微秒级时间戳获取
+pub mod cache;           // 解析器缓存 - 减少内存分配
 
 // 主要导出 - 核心事件处理功能
 pub use events::*;
@@ -18,6 +21,8 @@ pub use unified_parser::{
     parse_transaction_events, parse_logs_only, parse_transaction_with_listener, EventListener,
     parse_transaction_events_streaming, parse_logs_streaming, parse_transaction_with_streaming_listener, StreamingEventListener
 };
+pub use clock::{now_micros, elapsed_micros_since, now_nanos};
+pub use cache::{build_account_pubkeys_with_cache, AccountPubkeyCache};
 
 pub use crate::accounts::{
     parse_token_account, parse_nonce_account, AccountData,

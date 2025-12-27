@@ -7,6 +7,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+pub mod discriminator_lut;
 pub mod meteora_amm;
 pub mod meteora_damm;
 pub mod meteora_dlmm;
@@ -25,6 +26,7 @@ pub mod zero_copy_parser;
 // 导出关键的 utils 函数
 pub use utils::extract_discriminator_fast;
 pub use zero_copy_parser::parse_pumpfun_trade;
+pub use discriminator_lut::{lookup_discriminator, discriminator_to_name, discriminator_to_protocol, parse_with_discriminator};
 
 // 重新导出主要解析函数
 pub use meteora_amm::parse_log as parse_meteora_amm_log;
@@ -45,6 +47,7 @@ use crate::core::events::DexEvent;
 use solana_sdk::signature::Signature;
 
 /// 主日志解析入口函数
+#[inline(always)]  // 零延迟优化：内联热路径
 pub fn parse_log(
     log: &str,
     signature: Signature,
@@ -68,6 +71,7 @@ pub fn parse_log(
 }
 
 /// 统一的日志解析入口函数（优化版本）
+#[inline(always)]  // 零延迟优化：内联热路径
 pub fn parse_log_unified(
     log: &str,
     signature: Signature,

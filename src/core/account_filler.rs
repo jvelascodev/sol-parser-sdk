@@ -388,11 +388,40 @@ pub mod pumpswap {
     use crate::core::PumpSwapBuyEvent;
 
     pub fn fill_buy_accounts(event: &mut PumpSwapBuyEvent, get_account: &AccountGetter<'_>) {
+        // PumpSwap Buy instruction account mapping (based on IDL):
+        // 0: pool
+        // 1: user
+        // 2: authority
+        // 3: base_mint
+        // 4: quote_mint
+        // 5: user_base_token_account
+        // 6: user_quote_token_account
+        // 7: pool_base_token_account
+        // 8: pool_quote_token_account
+        // 9: protocol_fee_recipient
+        // 10: protocol_fee_recipient_token_account
+        // 11: base_token_program
+        // 12: quote_token_program
+        // 17: coin_creator_vault_ata (optional)
+        // 18: coin_creator_vault_authority (optional)
+
+        if event.pool == Pubkey::default() {
+            event.pool = get_account(0);
+        }
+        if event.user == Pubkey::default() {
+            event.user = get_account(1);
+        }
         if event.base_mint == Pubkey::default() {
             event.base_mint = get_account(3);
         }
         if event.quote_mint == Pubkey::default() {
             event.quote_mint = get_account(4);
+        }
+        if event.user_base_token_account == Pubkey::default() {
+            event.user_base_token_account = get_account(5);
+        }
+        if event.user_quote_token_account == Pubkey::default() {
+            event.user_quote_token_account = get_account(6);
         }
         if event.pool_base_token_account == Pubkey::default() {
             event.pool_base_token_account = get_account(7);
@@ -400,26 +429,61 @@ pub mod pumpswap {
         if event.pool_quote_token_account == Pubkey::default() {
             event.pool_quote_token_account = get_account(8);
         }
-        if event.coin_creator_vault_ata == Pubkey::default() {
-            event.coin_creator_vault_ata = get_account(17);
+        if event.protocol_fee_recipient == Pubkey::default() {
+            event.protocol_fee_recipient = get_account(9);
         }
-        if event.coin_creator_vault_authority == Pubkey::default() {
-            event.coin_creator_vault_authority = get_account(18);
+        if event.protocol_fee_recipient_token_account == Pubkey::default() {
+            event.protocol_fee_recipient_token_account = get_account(10);
         }
         if event.base_token_program == Pubkey::default() {
             event.base_token_program = get_account(11);
         }
         if event.quote_token_program == Pubkey::default() {
             event.quote_token_program = get_account(12);
+        }
+        if event.coin_creator_vault_ata == Pubkey::default() {
+            event.coin_creator_vault_ata = get_account(17);
+        }
+        if event.coin_creator_vault_authority == Pubkey::default() {
+            event.coin_creator_vault_authority = get_account(18);
         }
     }
 
     pub fn fill_sell_accounts(event: &mut PumpSwapSellEvent, get_account: &AccountGetter<'_>) {
+        // PumpSwap Sell instruction account mapping (based on IDL):
+        // 0: pool
+        // 1: user
+        // 2: authority
+        // 3: base_mint
+        // 4: quote_mint
+        // 5: user_base_token_account
+        // 6: user_quote_token_account
+        // 7: pool_base_token_account
+        // 8: pool_quote_token_account
+        // 9: protocol_fee_recipient
+        // 10: protocol_fee_recipient_token_account
+        // 11: base_token_program
+        // 12: quote_token_program
+        // 17: coin_creator_vault_ata (optional)
+        // 18: coin_creator_vault_authority (optional)
+
+        if event.pool == Pubkey::default() {
+            event.pool = get_account(0);
+        }
+        if event.user == Pubkey::default() {
+            event.user = get_account(1);
+        }
         if event.base_mint == Pubkey::default() {
             event.base_mint = get_account(3);
         }
         if event.quote_mint == Pubkey::default() {
             event.quote_mint = get_account(4);
+        }
+        if event.user_base_token_account == Pubkey::default() {
+            event.user_base_token_account = get_account(5);
+        }
+        if event.user_quote_token_account == Pubkey::default() {
+            event.user_quote_token_account = get_account(6);
         }
         if event.pool_base_token_account == Pubkey::default() {
             event.pool_base_token_account = get_account(7);
@@ -427,17 +491,23 @@ pub mod pumpswap {
         if event.pool_quote_token_account == Pubkey::default() {
             event.pool_quote_token_account = get_account(8);
         }
-        if event.coin_creator_vault_ata == Pubkey::default() {
-            event.coin_creator_vault_ata = get_account(17);
+        if event.protocol_fee_recipient == Pubkey::default() {
+            event.protocol_fee_recipient = get_account(9);
         }
-        if event.coin_creator_vault_authority == Pubkey::default() {
-            event.coin_creator_vault_authority = get_account(18);
+        if event.protocol_fee_recipient_token_account == Pubkey::default() {
+            event.protocol_fee_recipient_token_account = get_account(10);
         }
         if event.base_token_program == Pubkey::default() {
             event.base_token_program = get_account(11);
         }
         if event.quote_token_program == Pubkey::default() {
             event.quote_token_program = get_account(12);
+        }
+        if event.coin_creator_vault_ata == Pubkey::default() {
+            event.coin_creator_vault_ata = get_account(17);
+        }
+        if event.coin_creator_vault_authority == Pubkey::default() {
+            event.coin_creator_vault_authority = get_account(18);
         }
     }
 }
