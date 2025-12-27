@@ -26,8 +26,11 @@ pub fn fill_accounts_from_transaction_data(
     let loaded_writable_addresses = &meta.loaded_writable_addresses;
     let loaded_readonly_addresses = &meta.loaded_readonly_addresses;
     match event {
-        // PumpFun 事件填充
-        DexEvent::PumpFunTrade(ref mut trade_event) => {
+        // PumpFun 事件填充 (所有交易类型共用相同的账户填充逻辑)
+        DexEvent::PumpFunTrade(ref mut trade_event)
+        | DexEvent::PumpFunBuy(ref mut trade_event)
+        | DexEvent::PumpFunSell(ref mut trade_event)
+        | DexEvent::PumpFunBuyExactSolIn(ref mut trade_event) => {
             if let Some(invoke) = program_invokes
                 .get(crate::grpc::program_ids::PUMPFUN_PROGRAM_ID)
                 .as_ref()
@@ -116,8 +119,11 @@ pub fn fill_accounts_with_owned_keys(
     let loaded_writable_addresses = &meta.loaded_writable_addresses;
     let loaded_readonly_addresses = &meta.loaded_readonly_addresses;
     match event {
-        // PumpFun 事件填充
-        DexEvent::PumpFunTrade(ref mut trade_event) => {
+        // PumpFun 事件填充 (所有交易类型共用相同的账户填充逻辑)
+        DexEvent::PumpFunTrade(ref mut trade_event)
+        | DexEvent::PumpFunBuy(ref mut trade_event)
+        | DexEvent::PumpFunSell(ref mut trade_event)
+        | DexEvent::PumpFunBuyExactSolIn(ref mut trade_event) => {
             if let Some(invoke) = program_invokes
                 .get(&crate::grpc::program_ids::PUMPFUN_PROGRAM)
                 .and_then(|v| v.last())
@@ -196,8 +202,11 @@ pub fn fill_accounts_from_instruction_data(event: &mut DexEvent, instruction_acc
         |index: usize| -> Pubkey { instruction_accounts.get(index).cloned().unwrap_or_default() };
 
     match event {
-        // PumpFun 事件填充
-        DexEvent::PumpFunTrade(ref mut trade_event) => {
+        // PumpFun 事件填充 (所有交易类型共用相同的账户填充逻辑)
+        DexEvent::PumpFunTrade(ref mut trade_event)
+        | DexEvent::PumpFunBuy(ref mut trade_event)
+        | DexEvent::PumpFunSell(ref mut trade_event)
+        | DexEvent::PumpFunBuyExactSolIn(ref mut trade_event) => {
             pumpfun::fill_trade_accounts(trade_event, &get_account);
         }
         DexEvent::PumpFunCreate(ref mut create_event) => {
