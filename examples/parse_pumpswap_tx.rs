@@ -51,58 +51,13 @@ fn main() {
     println!("✓ Parsing completed!");
     println!("  Found {} DEX events\n", events.len());
 
-    // 显示解析结果
+    // 显示解析结果（完整事件数据格式，与 gRPC 解析结果一致）
     if events.is_empty() {
         println!("⚠ No DEX events found in this transaction.");
-        println!("  This could mean:");
-        println!("  - The transaction doesn't contain DEX operations");
-        println!("  - The DEX protocol is not yet supported");
-        println!("  - The transaction only contains logs (no inner instructions)");
-        println!("\nNote: This transaction may still have been parsed from logs.");
-        println!("The inner instruction support is specifically for:");
-        println!("  - Transactions without logs");
-        println!("  - Failed transactions (no logs emitted)");
-        println!("  - Additional data beyond what logs provide");
     } else {
-        println!("=== Parsed Events ===\n");
+        println!("=== Parsed Events (SDK Format) ===\n");
         for (i, event) in events.iter().enumerate() {
-            println!("Event #{}:", i + 1);
-            match event {
-                sol_parser_sdk::DexEvent::PumpSwapBuy(e) => {
-                    println!("  Type: PumpSwap Buy");
-                    println!("  Metadata: {:?}", e.metadata);
-                    println!("  Base Amount Out: {}", e.base_amount_out);
-                    println!("  Quote Amount In: {}", e.user_quote_amount_in);
-                }
-                sol_parser_sdk::DexEvent::PumpSwapSell(e) => {
-                    println!("  Type: PumpSwap Sell");
-                    println!("  Metadata: {:?}", e.metadata);
-                    println!("  Base Amount In: {}", e.base_amount_in);
-                    println!("  Quote Amount Out: {}", e.user_quote_amount_out);
-                }
-                sol_parser_sdk::DexEvent::PumpSwapCreatePool(e) => {
-                    println!("  Type: PumpSwap Create Pool");
-                    println!("  Metadata: {:?}", e.metadata);
-                    println!("  Pool: {}", e.pool);
-                    println!("  Creator: {}", e.creator);
-                }
-                sol_parser_sdk::DexEvent::PumpSwapLiquidityAdded(e) => {
-                    println!("  Type: PumpSwap Liquidity Added");
-                    println!("  Metadata: {:?}", e.metadata);
-                    println!("  Base Amount In: {}", e.base_amount_in);
-                    println!("  Quote Amount In: {}", e.quote_amount_in);
-                }
-                sol_parser_sdk::DexEvent::PumpSwapLiquidityRemoved(e) => {
-                    println!("  Type: PumpSwap Liquidity Removed");
-                    println!("  Metadata: {:?}", e.metadata);
-                    println!("  Base Amount Out: {}", e.base_amount_out);
-                    println!("  Quote Amount Out: {}", e.quote_amount_out);
-                }
-                other => {
-                    println!("  Type: {:?}", other);
-                }
-            }
-            println!();
+            println!("Event #{}: {:?}\n", i + 1, event);
         }
     }
 

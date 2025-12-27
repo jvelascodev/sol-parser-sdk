@@ -242,9 +242,9 @@ fn main() {
                     }
                 }
             } else {
+                println!("\n=== Parsed Events (SDK Format) ===\n");
                 for (i, event) in events.iter().enumerate() {
-                    println!("\nEvent #{}:", i + 1);
-                    println!("{:#?}", event);
+                    println!("Event #{}: {:?}\n", i + 1, event);
                 }
             }
         }
