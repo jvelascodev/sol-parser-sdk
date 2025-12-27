@@ -180,39 +180,15 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
 
-                    // 简化的事件输出
-                    match &event {
-                        DexEvent::PumpSwapBuy(e) => {
-                            println!(
-                                "🟢 BUY  | Slot: {:>10} | Tx: {:>5} | Latency: {:>6} μs | Base: {} | Quote: {}",
-                                e.metadata.slot,
-                                e.metadata.tx_index,
-                                latency_us,
-                                e.base_amount_out,
-                                e.quote_amount_in
-                            );
-                        }
-                        DexEvent::PumpSwapSell(e) => {
-                            println!(
-                                "🔴 SELL | Slot: {:>10} | Tx: {:>5} | Latency: {:>6} μs | Base: {} | Quote: {}",
-                                e.metadata.slot,
-                                e.metadata.tx_index,
-                                latency_us,
-                                e.base_amount_in,
-                                e.quote_amount_out
-                            );
-                        }
-                        DexEvent::PumpSwapCreatePool(e) => {
-                            println!(
-                                "🆕 POOL | Slot: {:>10} | Tx: {:>5} | Latency: {:>6} μs | Creator: {}",
-                                e.metadata.slot,
-                                e.metadata.tx_index,
-                                latency_us,
-                                e.creator
-                            );
-                        }
-                        _ => {}
-                    }
+                    // 打印完整的时间指标和事件数据
+                    println!("\n================================================");
+                    println!("gRPC接收时间: {} μs", grpc_recv_us);
+                    println!("事件接收时间: {} μs", queue_recv_us);
+                    println!("延迟时间: {} μs", latency_us);
+                    println!("队列长度: {}", queue.len());
+                    println!("================================================");
+                    println!("{:?}", event);
+                    println!();
                 }
             } else {
                 spin_count += 1;
