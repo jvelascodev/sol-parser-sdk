@@ -67,124 +67,43 @@
 
 ### Installation
 
-Add to your project's `Cargo.toml`:
+Clone the repository:
 
-```toml
-[dependencies]
-# Default: Borsh parser (type-safe, easy to maintain)
-sol-parser-sdk = { path = "../sol-parser-sdk" }
-
-# Or use zero-copy parser (maximum performance)
-sol-parser-sdk = { path = "../sol-parser-sdk", default-features = false, features = ["parse-zero-copy"] }
-```
-
-**Or clone the repository:**
-
-```shell
+```bash
 cd your_project_dir
 git clone https://github.com/0xfnzero/sol-parser-sdk
 ```
 
-### 🎚️ Choosing Parser Mode
-
-Sol-parser-sdk provides **two pluggable parser implementations** that can be selected at compile time:
-
-#### 1️⃣ **Borsh Parser** (Default, Recommended)
-
-**Features:**
-- ✅ Type-safe with automatic validation
-- ✅ Concise code (~10 lines per event)
-- ✅ Easy to maintain and debug
-- ✅ 95%+ performance of zero-copy parser
-
-**Usage in your project's `Cargo.toml`:**
-```toml
-[dependencies]
-sol-parser-sdk = { path = "../sol-parser-sdk" }
-# or
-sol-parser-sdk = { path = "../sol-parser-sdk", features = ["parse-borsh"] }
-```
-
-**Best for:**
-- General use cases
-- Projects prioritizing stability and maintainability
-- Development and testing environments
-
----
-
-#### 2️⃣ **Zero-Copy Parser** (High Performance)
-
-**Features:**
-- ✅ Maximum performance (100% baseline)
-- ✅ Zero memory allocation
-- ✅ Direct memory reading with unsafe optimizations
-- ✅ Ideal for ultra-high frequency scenarios (10,000+ events/sec)
-
-**Usage in your project's `Cargo.toml`:**
-```toml
-[dependencies]
-sol-parser-sdk = { path = "../sol-parser-sdk", default-features = false, features = ["parse-zero-copy"] }
-```
-
-**Best for:**
-- Performance-critical paths
-- High-frequency trading systems
-- Ultra-low latency requirements
-
----
-
-#### 📊 Performance Comparison
-
-| Parser Type | Performance | Code Complexity | Type Safety | Memory Allocation |
-|-------------|-------------|-----------------|-------------|-------------------|
-| **Borsh** (default) | 95%+ | Low (10 lines) | ✅ Full | Minimal |
-| **Zero-Copy** | 100% | Medium (30 lines) | ⚠️ Manual | Zero |
-
-**Recommendation:** Start with **Borsh parser** (default) for most use cases. Switch to **zero-copy parser** only if profiling shows parsing is a bottleneck.
-
----
-
-#### 🔄 Switching Between Parsers
-
-You can easily switch between parsers by updating your `Cargo.toml`:
+Add to your `Cargo.toml`:
 
 ```toml
-# Switch from Borsh to Zero-Copy
 [dependencies]
-# Before (Borsh)
+# Default: Borsh parser
 sol-parser-sdk = { path = "../sol-parser-sdk" }
 
-# After (Zero-Copy)
+# Or: Zero-copy parser (maximum performance)
 sol-parser-sdk = { path = "../sol-parser-sdk", default-features = false, features = ["parse-zero-copy"] }
 ```
-
-Then rebuild your project:
-```bash
-cargo clean
-cargo build --release
-```
-
-**No code changes required!** The parser selection is transparent to your application code.
 
 ### Performance Testing
 
-Test parsing latency with the optimized example:
+Test parsing latency with the optimized examples:
 
 ```bash
-# Run performance test (requires sudo for high-precision timing)
-cargo run --example basic --release
+# PumpFun with detailed metrics
+cargo run --example pumpfun_with_metrics --release
 
-# PumpSwap events with MicroBatch ordering
+# PumpSwap ultra-low latency test
+cargo run --example pumpswap_low_latency --release
+
+# PumpSwap with MicroBatch ordering
 cargo run --example pumpswap_ordered --release
 
 # Expected output:
-# gRPC recv time: 1234567890 μs
-# Event recv time: 1234567900 μs
-# Parse latency: 10 μs  <-- Ultra-low latency!
-
+# gRPC接收时间: 1234567890 μs
+# 事件接收时间: 1234567900 μs
+# 延迟时间: 10 μs  <-- Ultra-low latency!
 ```
-
-**Why sudo?** The example uses `libc::clock_gettime(CLOCK_REALTIME)` for microsecond-precision timing, which may require elevated permissions on some systems.
 
 ### Examples
 
