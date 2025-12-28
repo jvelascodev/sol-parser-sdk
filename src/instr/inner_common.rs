@@ -36,6 +36,13 @@ pub unsafe fn read_u128_unchecked(data: &[u8], offset: usize) -> u128 {
     u128::from_le(ptr.read_unaligned())
 }
 
+/// 零拷贝读取 i32
+#[inline(always)]
+pub unsafe fn read_i32_unchecked(data: &[u8], offset: usize) -> i32 {
+    let ptr = data.as_ptr().add(offset) as *const i32;
+    i32::from_le(ptr.read_unaligned())
+}
+
 /// 零拷贝读取 i64
 #[inline(always)]
 pub unsafe fn read_i64_unchecked(data: &[u8], offset: usize) -> i64 {
