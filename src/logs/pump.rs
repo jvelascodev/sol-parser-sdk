@@ -194,6 +194,7 @@ pub fn parse_log(
     block_time_us: Option<i64>,
     grpc_recv_us: i64,
     is_created_buy: bool,
+    has_dev_buy: bool,
 ) -> Option<DexEvent> {
     #[cfg(feature = "perf-stats")]
     let start = std::time::Instant::now();
@@ -212,7 +213,7 @@ pub fn parse_log(
 
     let result = match discriminator {
         discriminators::CREATE_EVENT => {
-            parse_create_event_optimized(data, signature, slot, tx_index, block_time_us, grpc_recv_us)
+            parse_create_event_optimized(data, signature, slot, tx_index, block_time_us, grpc_recv_us, has_dev_buy)
         }
         discriminators::TRADE_EVENT => {
             parse_trade_event_optimized(data, signature, slot, tx_index, block_time_us, grpc_recv_us, is_created_buy)
@@ -246,6 +247,7 @@ fn parse_create_event_optimized(
     tx_index: u64,
     block_time_us: Option<i64>,
     grpc_recv_us: i64,
+    has_dev_buy: bool,
 ) -> Option<DexEvent> {
     unsafe {
         let mut offset = 0;
@@ -333,6 +335,7 @@ fn parse_create_event_optimized(
             token_total_supply,
             token_program,
             is_mayhem_mode,
+            has_dev_buy,
         }))
     }
 }
@@ -785,7 +788,7 @@ pub fn parse_buy_exact_sol_in_from_data(data: &[u8], metadata: EventMetadata, is
 
 /// Parse PumpFun Create event from pre-decoded data
 #[inline(always)]
-pub fn parse_create_from_data(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+pub fn parse_create_from_data(data: &[u8], metadata: EventMetadata, has_dev_buy: bool) -> Option<DexEvent> {
     unsafe {
         let mut offset = 0;
 
@@ -858,6 +861,7 @@ pub fn parse_create_from_data(data: &[u8], metadata: EventMetadata) -> Option<De
             token_total_supply,
             token_program,
             is_mayhem_mode,
+            has_dev_buy,
         }))
     }
 }

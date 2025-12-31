@@ -30,6 +30,8 @@ static PROGRAM_DATA_FINDER: Lazy<memmem::Finder> =
     Lazy::new(|| memmem::Finder::new(b"Program data: "));
 static PUMPFUN_CREATE_FINDER: Lazy<memmem::Finder> =
     Lazy::new(|| memmem::Finder::new(b"Program data: G3KpTd7rY3Y"));
+static PUMPFUN_TRADE_FINDER: Lazy<memmem::Finder> =
+    Lazy::new(|| memmem::Finder::new(b"Program data: vdt/007mYe4"));
     static WHIRL_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"whirL"));
 static METEORA_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"meteora"));
 static METEORA_LB_FINDER: Lazy<memmem::Finder> = Lazy::new(|| memmem::Finder::new(b"LB"));
@@ -252,6 +254,7 @@ pub fn parse_log_optimized(
     grpc_recv_us: i64,
     event_type_filter: Option<&EventTypeFilter>,
     is_created_buy: bool,
+    has_dev_buy: bool,
 ) -> Option<DexEvent> {
     // Step 1: Find "Program data: " prefix using SIMD
     let log_bytes = log.as_bytes();
@@ -393,7 +396,7 @@ pub fn parse_log_optimized(
 
         // PumpFun events (cold path)
         discriminators::PUMPFUN_CREATE => {
-            crate::logs::pump::parse_create_from_data(data, metadata)
+            crate::logs::pump::parse_create_from_data(data, metadata, has_dev_buy)
         }
         discriminators::PUMPFUN_MIGRATE => {
             crate::logs::pump::parse_migrate_from_data(data, metadata)
@@ -536,6 +539,12 @@ fn discriminator_to_event_type(discriminator: u64) -> Option<EventType> {
 #[inline]
 pub fn detect_pumpfun_create(logs: &[String]) -> bool {
     logs.iter().any(|log| PUMPFUN_CREATE_FINDER.find(log.as_bytes()).is_some())
+}
+
+/// Detect if logs contain a PumpFun Trade event (SIMD optimized)
+#[inline]
+pub fn detect_pumpfun_trade(logs: &[String]) -> bool {
+    logs.iter().any(|log| PUMPFUN_TRADE_FINDER.find(log.as_bytes()).is_some())
 }
 
 /// SIMD 优化的 "invoke [" 查找器

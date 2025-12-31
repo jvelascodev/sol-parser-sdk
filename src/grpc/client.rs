@@ -470,6 +470,7 @@ fn parse_logs(
 ) -> Vec<DexEvent> {
     let needs_pumpfun = filter.map(|f| f.includes_pumpfun()).unwrap_or(true);
     let has_create = needs_pumpfun && crate::logs::optimized_matcher::detect_pumpfun_create(logs);
+    let has_trade = needs_pumpfun && crate::logs::optimized_matcher::detect_pumpfun_trade(logs);
 
     let mut outer_idx: i32 = -1;
     let mut inner_idx: i32 = -1;
@@ -484,7 +485,9 @@ fn parse_logs(
 
         if PROGRAM_DATA_FINDER.find(log.as_bytes()).is_none() { continue; }
 
-        if let Some(mut e) = crate::logs::parse_log(log, sig, slot, tx_idx, block_us, grpc_us, filter, has_create) {
+        // has_create: passed as is_created_buy for Trade events
+        // has_trade: passed as has_dev_buy for Create events
+        if let Some(mut e) = crate::logs::parse_log(log, sig, slot, tx_idx, block_us, grpc_us, filter, has_create, has_trade) {
             crate::core::account_dispatcher::fill_accounts_from_transaction_data(&mut e, meta, transaction, &invokes);
             crate::core::common_filler::fill_data(&mut e, meta, transaction, &invokes);
             result.push(e);

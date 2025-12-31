@@ -57,6 +57,7 @@ pub fn parse_log(
     grpc_recv_us: i64,
     event_type_filter: Option<&crate::grpc::types::EventTypeFilter>,
     is_created_buy: bool,
+    has_dev_buy: bool,
 ) -> Option<DexEvent> {
     optimized_matcher::parse_log_optimized(
         log,
@@ -67,6 +68,7 @@ pub fn parse_log(
         grpc_recv_us,
         event_type_filter,
         is_created_buy,
+        has_dev_buy,
     )
 }
 
@@ -91,6 +93,7 @@ pub fn parse_log_unified(
         block_time_us,
         grpc_recv_us,
         None,
+        false,
         false,
     )
 }

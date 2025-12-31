@@ -186,6 +186,8 @@ pub struct PumpFunCreateTokenEvent {
     pub token_program: Pubkey,
     #[borsh(skip)]
     pub is_mayhem_mode: bool,
+    #[borsh(skip)]
+    pub has_dev_buy: bool,  // True if same tx contains a Trade/Buy event
 }
 
 /// PumpSwap Trade Event - Unified trade event from IDL TradeEvent

@@ -42,7 +42,8 @@ pub enum Protocol {
 // PumpFun parsers
 #[inline(always)]
 fn parse_pumpfun_create(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
-    crate::logs::pump::parse_create_from_data(data, metadata)
+    // has_dev_buy defaults to false since this LUT doesn't have transaction context
+    crate::logs::pump::parse_create_from_data(data, metadata, false)
 }
 
 #[inline(always)]
