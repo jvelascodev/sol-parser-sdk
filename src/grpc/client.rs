@@ -493,6 +493,17 @@ fn parse_logs(
             result.push(e);
         }
     }
+
+    // Post-processing fix: ensure created event has has_dev_buy=true if a trade exists in the same transaction
+    // This handles cases where detect_pumpfun_trade might fail (e.g. CPI events) but the event is still parsed
+    if result.iter().any(|e| matches!(e, DexEvent::PumpFunTrade(_) | DexEvent::PumpFunBuy(_) | DexEvent::PumpFunSell(_) | DexEvent::PumpFunBuyExactSolIn(_))) {
+        for e in &mut result {
+            if let DexEvent::PumpFunCreate(create) = e {
+                create.has_dev_buy = true;
+            }
+        }
+    }
+
     result
 }
 
