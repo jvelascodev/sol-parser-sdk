@@ -138,6 +138,7 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ User       : {}", e.user);
                         println!("│ ix_name    : {}", e.ix_name);
                         println!("│ is_created_buy: {}", e.is_created_buy);
+                        println!("│ creator: {}", e.creator);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Latency : {} μs", latency_us);
                         println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
