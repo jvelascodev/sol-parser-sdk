@@ -125,6 +125,12 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         buy_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
+                        
+                        // Real latency metrics
+                        let e2e_latency_us = now_us - e.metadata.block_time_us;
+                        let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
+                        let e2e_latency_ms = e2e_latency_us / 1000;
+                        let grpc_age_ms = grpc_age_us / 1000;
 
                         println!("┌─────────────────────────────────────────────────────────────");
                         println!("│ 🟢 PumpFun BUY #{}", event_count);
@@ -140,7 +146,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ is_created_buy: {}", e.is_created_buy);
                         println!("│ creator: {}", e.creator);
                         println!("├─────────────────────────────────────────────────────────────");
-                        println!("│ 📊 Latency : {} μs", latency_us);
+                        println!("│ 📊 Process Latency : {} μs", latency_us);
+                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
                         println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
                         println!("└─────────────────────────────────────────────────────────────\n");
                     }
@@ -149,6 +157,12 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         sell_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
+                        
+                        // Real latency metrics
+                        let e2e_latency_us = now_us - e.metadata.block_time_us;
+                        let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
+                        let e2e_latency_ms = e2e_latency_us / 1000;
+                        let grpc_age_ms = grpc_age_us / 1000;
 
                         println!("┌─────────────────────────────────────────────────────────────");
                         println!("│ 🔴 PumpFun SELL #{}", event_count);
@@ -162,7 +176,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ User       : {}", e.user);
                         println!("│ ix_name    : {}", e.ix_name);
                         println!("├─────────────────────────────────────────────────────────────");
-                        println!("│ 📊 Latency : {} μs", latency_us);
+                        println!("│ 📊 Process Latency : {} μs", latency_us);
+                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
                         println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
                         println!("└─────────────────────────────────────────────────────────────\n");
                     }
@@ -171,6 +187,12 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         buy_exact_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
+                        
+                        // Real latency metrics
+                        let e2e_latency_us = now_us - e.metadata.block_time_us;
+                        let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
+                        let e2e_latency_ms = e2e_latency_us / 1000;
+                        let grpc_age_ms = grpc_age_us / 1000;
 
                         println!("┌─────────────────────────────────────────────────────────────");
                         println!("│ 🟡 PumpFun BUY_EXACT_SOL_IN #{}", event_count);
@@ -184,7 +206,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ User       : {}", e.user);
                         println!("│ ix_name    : {}", e.ix_name);
                         println!("├─────────────────────────────────────────────────────────────");
-                        println!("│ 📊 Latency : {} μs", latency_us);
+                        println!("│ 📊 Process Latency : {} μs", latency_us);
+                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
                         println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
                         println!("└─────────────────────────────────────────────────────────────\n");
                     }
@@ -193,12 +217,22 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         // Fallback for unknown trade types
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
+                        
+                        // Real latency metrics
+                        let e2e_latency_us = now_us - e.metadata.block_time_us;
+                        let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
+                        let e2e_latency_ms = e2e_latency_us / 1000;
+                        let grpc_age_ms = grpc_age_us / 1000;
 
                         println!("┌─────────────────────────────────────────────────────────────");
                         println!("│ ⚪ PumpFun TRADE (unknown type) #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ ix_name    : {} (is_buy={})", e.ix_name, e.is_buy);
                         println!("│ Signature  : {}", e.metadata.signature);
+                        println!("├─────────────────────────────────────────────────────────────");
+                        println!("│ 📊 Process Latency : {} μs", latency_us);
+                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
                         println!("└─────────────────────────────────────────────────────────────\n");
                     }
 
@@ -206,6 +240,12 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         create_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
+                        
+                        // Real latency metrics
+                        let e2e_latency_us = now_us - e.metadata.block_time_us;
+                        let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
+                        let e2e_latency_ms = e2e_latency_us / 1000;
+                        let grpc_age_ms = grpc_age_us / 1000;
 
                         println!("┌─────────────────────────────────────────────────────────────");
                         println!("│ 🆕 PumpFun CREATE #{}", event_count);
@@ -219,7 +259,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ Creator    : {}", e.creator);
                         println!("│ has_dev_buy: {}", e.has_dev_buy);
                         println!("├─────────────────────────────────────────────────────────────");
-                        println!("│ 📊 Latency : {} μs", latency_us);
+                        println!("│ 📊 Process Latency : {} μs", latency_us);
+                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
                         println!("│ 📊 Creates : {}", create_count);
                         println!("└─────────────────────────────────────────────────────────────\n");
                     }
