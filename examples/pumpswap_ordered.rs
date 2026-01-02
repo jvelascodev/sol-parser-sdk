@@ -90,7 +90,7 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                 let now_us = unsafe {
                     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
                     libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-                    (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+                    ts.tv_sec * 1_000_000 + ts.tv_nsec / 1_000
                 };
 
                 match &event {
@@ -111,10 +111,16 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🟢 PumpSwap BUY #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
-                        println!("│ Order Check: {} (prev: slot={}, tx={})", 
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
+                        println!(
+                            "│ Order Check: {} (prev: slot={}, tx={})",
                             if order_ok { "✓ OK" } else { "✗ OUT OF ORDER" },
-                            last_slot, last_tx_index);
+                            last_slot,
+                            last_tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Base Token : {:?}", e.base_mint);
                         println!("│ Quote Token: {:?}", e.quote_mint);
@@ -124,7 +130,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Latency : {} μs", latency_us);
                         println!("│ 📊 Avg     : {} μs", total_latency_us / event_count as i64);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
 
                         last_slot = e.metadata.slot;
                         last_tx_index = e.metadata.tx_index;
@@ -146,10 +154,16 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🔴 PumpSwap SELL #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
-                        println!("│ Order Check: {} (prev: slot={}, tx={})", 
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
+                        println!(
+                            "│ Order Check: {} (prev: slot={}, tx={})",
                             if order_ok { "✓ OK" } else { "✗ OUT OF ORDER" },
-                            last_slot, last_tx_index);
+                            last_slot,
+                            last_tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Base Token : {:?}", e.base_mint);
                         println!("│ Quote Token: {:?}", e.quote_mint);
@@ -159,7 +173,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Latency : {} μs", latency_us);
                         println!("│ 📊 Avg     : {} μs", total_latency_us / event_count as i64);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
 
                         last_slot = e.metadata.slot;
                         last_tx_index = e.metadata.tx_index;
@@ -173,7 +189,10 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🆕 PumpSwap CREATE POOL #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Pool       : {:?}", e.pool);
                         println!("│ Base Mint  : {:?}", e.base_mint);
@@ -181,7 +200,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ Creator    : {:?}", e.creator);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Latency : {} μs", latency_us);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
 
                         last_slot = e.metadata.slot;
                         last_tx_index = e.metadata.tx_index;

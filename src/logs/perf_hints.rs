@@ -1,3 +1,4 @@
+#![allow(clippy::missing_safety_doc)]
 //! 性能优化提示和内联函数
 
 /// likely - 告诉编译器条件大概率为真

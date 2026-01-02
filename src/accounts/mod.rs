@@ -72,7 +72,7 @@ pub fn parse_account_unified(
             return None;
         }
     }
-    return parse_token_account(account, metadata);
+    parse_token_account(account, metadata)
 }
 
 fn parse_pumpswap_account(account: &AccountData, metadata: EventMetadata) -> Option<DexEvent> {

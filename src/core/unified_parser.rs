@@ -9,8 +9,8 @@
 //! - 分支预测提示
 
 use crate::core::events::*;
+use smallvec::{smallvec, SmallVec};
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use smallvec::{SmallVec, smallvec};
 
 /// 主要解析函数 - 解析完整交易并返回所有 DEX 事件
 ///
@@ -26,23 +26,26 @@ use smallvec::{SmallVec, smallvec};
 /// ## 零延迟优化
 /// - 使用 SmallVec<[DexEvent; 4]> 栈分配，大多数交易 ≤ 4 个事件
 /// - 预分配容量，避免动态扩容
-#[inline]  // 零延迟优化：内联
+#[inline] // 零延迟优化：内联
+#[allow(clippy::too_many_arguments)]
 pub fn parse_transaction_events(
-    instruction_data: &[u8],
-    accounts: &[Pubkey],
+    _instruction_data: &[u8],
+    _accounts: &[Pubkey],
     logs: &[String],
     signature: Signature,
     slot: u64,
-    tx_index: u64,
+    _tx_index: u64,
     block_time_us: Option<i64>,
-    program_id: &Pubkey,
-) -> SmallVec<[DexEvent; 4]> {  // 零延迟优化：SmallVec 栈分配
-    let mut events = smallvec![];  // 栈分配，容量 4
+    _program_id: &Pubkey,
+) -> SmallVec<[DexEvent; 4]> {
+    // 零延迟优化：SmallVec 栈分配
+    let mut events = smallvec![]; // 栈分配，容量 4
 
     // 2. 解析日志事件 - 大多数日志会成功解析
     for log in logs {
-        if let Some(log_event) = crate::logs::parse_log_unified(log, signature, slot, block_time_us) {
-            events.push(log_event);  // 热路径：成功解析
+        if let Some(log_event) = crate::logs::parse_log_unified(log, signature, slot, block_time_us)
+        {
+            events.push(log_event); // 热路径：成功解析
         }
         // 冷路径：解析失败，继续下一个
     }
@@ -51,14 +54,15 @@ pub fn parse_transaction_events(
 }
 
 /// 简化版本 - 仅解析日志事件
-#[inline]  // 零延迟优化：内联
+#[inline] // 零延迟优化：内联
 pub fn parse_logs_only(
     logs: &[String],
     signature: Signature,
     slot: u64,
     block_time_us: Option<i64>,
-) -> SmallVec<[DexEvent; 4]> {  // 零延迟优化：SmallVec 栈分配
-    let mut events = SmallVec::with_capacity(logs.len().min(4));  // 预分配容量
+) -> SmallVec<[DexEvent; 4]> {
+    // 零延迟优化：SmallVec 栈分配
+    let mut events = SmallVec::with_capacity(logs.len().min(4)); // 预分配容量
 
     for log in logs {
         if let Some(event) = crate::logs::parse_log_unified(log, signature, slot, block_time_us) {
@@ -75,6 +79,7 @@ pub trait EventListener {
 }
 
 /// 使用监听器解析交易的便捷函数
+#[allow(clippy::too_many_arguments)]
 pub fn parse_transaction_with_listener<T: EventListener>(
     instruction_data: &[u8],
     accounts: &[Pubkey],
@@ -87,7 +92,14 @@ pub fn parse_transaction_with_listener<T: EventListener>(
     listener: &T,
 ) {
     let events = parse_transaction_events(
-        instruction_data, accounts, logs, signature, slot, tx_index, block_time_us, program_id
+        instruction_data,
+        accounts,
+        logs,
+        signature,
+        slot,
+        tx_index,
+        block_time_us,
+        program_id,
     );
 
     for event in &events {
@@ -99,18 +111,19 @@ pub fn parse_transaction_with_listener<T: EventListener>(
 ///
 /// 这个版本不做事件合并，确保每个事件都能立即被处理
 /// 适用于需要实时响应的场景
+#[allow(clippy::too_many_arguments)]
 pub fn parse_transaction_events_streaming<F>(
-    instruction_data: &[u8],
-    accounts: &[Pubkey],
+    _instruction_data: &[u8],
+    _accounts: &[Pubkey],
     logs: &[String],
     signature: Signature,
     slot: u64,
-    tx_index: u64,
+    _tx_index: u64,
     block_time_us: Option<i64>,
-    program_id: &Pubkey,
+    _program_id: &Pubkey,
     mut callback: F,
 ) where
-    F: FnMut(DexEvent)
+    F: FnMut(DexEvent),
 {
     // 1. 先解析指令事件（如果有） - 立即回调
     // if let Some(instr_event) = crate::instr::parse_instruction_unified(
@@ -121,8 +134,9 @@ pub fn parse_transaction_events_streaming<F>(
 
     // 2. 逐个解析日志事件 - 每个事件立即回调
     for log in logs {
-        if let Some(log_event) = crate::logs::parse_log_unified(log, signature, slot, block_time_us) {
-            callback(log_event);  // 立即回调日志事件，不等待其他日志
+        if let Some(log_event) = crate::logs::parse_log_unified(log, signature, slot, block_time_us)
+        {
+            callback(log_event); // 立即回调日志事件，不等待其他日志
         }
     }
 
@@ -138,7 +152,7 @@ pub fn parse_logs_streaming<F>(
     block_time_us: Option<i64>,
     mut callback: F,
 ) where
-    F: FnMut(DexEvent)
+    F: FnMut(DexEvent),
 {
     for log in logs {
         if let Some(event) = crate::logs::parse_log_unified(log, signature, slot, block_time_us) {
@@ -153,6 +167,7 @@ pub trait StreamingEventListener {
 }
 
 /// 使用流式监听器解析交易的便捷函数
+#[allow(clippy::too_many_arguments)]
 pub fn parse_transaction_with_streaming_listener<T: StreamingEventListener>(
     instruction_data: &[u8],
     accounts: &[Pubkey],
@@ -173,6 +188,6 @@ pub fn parse_transaction_with_streaming_listener<T: StreamingEventListener>(
         tx_index,
         block_time_us,
         program_id,
-        |event| listener.on_dex_event_streaming(event)
+        |event| listener.on_dex_event_streaming(event),
     );
 }

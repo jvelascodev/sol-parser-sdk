@@ -2,10 +2,10 @@
 //!
 //! 使用 match discriminator 模式解析 Meteora Pools 指令
 
-use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use crate::core::events::*;
-use super::utils::*;
 use super::program_ids;
+use super::utils::*;
+use crate::core::events::*;
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
 /// Meteora Pools 指令类型枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,14 +35,14 @@ pub enum MeteoraPoolsInstruction {
 impl MeteoraPoolsInstruction {
     /// 从 discriminator 转换为指令类型
     pub fn from_discriminator(discriminator: &[u8; 8]) -> Option<Self> {
-        match discriminator {
-            &[175, 175, 109, 31, 13, 152, 155, 237] => Some(Self::Initialize),
-            &[248, 198, 158, 145, 225, 117, 135, 200] => Some(Self::Swap),
-            &[181, 157, 89, 67, 143, 182, 52, 72] => Some(Self::AddLiquidity),
-            &[80, 85, 209, 72, 24, 206, 177, 108] => Some(Self::RemoveLiquidity),
-            &[208, 127, 21, 1, 194, 190, 196, 70] => Some(Self::CreateConfig),
-            &[123, 134, 81, 0, 49, 68, 98, 98] => Some(Self::CloseConfig),
-            &[95, 180, 10, 172, 84, 174, 232, 40] => Some(Self::CreatePool),
+        match *discriminator {
+            [175, 175, 109, 31, 13, 152, 155, 237] => Some(Self::Initialize),
+            [248, 198, 158, 145, 225, 117, 135, 200] => Some(Self::Swap),
+            [181, 157, 89, 67, 143, 182, 52, 72] => Some(Self::AddLiquidity),
+            [80, 85, 209, 72, 24, 206, 177, 108] => Some(Self::RemoveLiquidity),
+            [208, 127, 21, 1, 194, 190, 196, 70] => Some(Self::CreateConfig),
+            [123, 134, 81, 0, 49, 68, 98, 98] => Some(Self::CloseConfig),
+            [95, 180, 10, 172, 84, 174, 232, 40] => Some(Self::CreatePool),
             _ => None,
         }
     }
@@ -82,16 +82,26 @@ pub fn parse_instruction(
     match instruction_type {
         MeteoraPoolsInstruction::Swap => {
             parse_swap_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
-        MeteoraPoolsInstruction::AddLiquidity => {
-            parse_add_liquidity_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
-        MeteoraPoolsInstruction::RemoveLiquidity => {
-            parse_remove_liquidity_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
+        }
+        MeteoraPoolsInstruction::AddLiquidity => parse_add_liquidity_instruction(
+            data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+        ),
+        MeteoraPoolsInstruction::RemoveLiquidity => parse_remove_liquidity_instruction(
+            data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+        ),
         MeteoraPoolsInstruction::CreatePool => {
             parse_create_pool_instruction(data, accounts, signature, slot, tx_index, block_time_us)
-        },
+        }
         _ => None, // 其他指令暂不解析
     }
 }
@@ -119,9 +129,9 @@ fn parse_swap_instruction(
         metadata,
         in_amount,
         out_amount: minimum_out_amount, // 先用指令中的最小值，日志会覆盖实际值
-        trade_fee: 0, // 从日志中获取
-        admin_fee: 0, // 从日志中获取
-        host_fee: 0, // 从日志中获取
+        trade_fee: 0,                   // 从日志中获取
+        admin_fee: 0,                   // 从日志中获取
+        host_fee: 0,                    // 从日志中获取
     }))
 }
 
@@ -199,22 +209,22 @@ fn parse_create_pool_instruction(
     let curve_type = read_u8(data, offset)?;
     offset += 1;
 
-    let trade_fee_numerator = read_u64_le(data, offset)?;
+    let _trade_fee_numerator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let trade_fee_denominator = read_u64_le(data, offset)?;
+    let _trade_fee_denominator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_trade_fee_numerator = read_u64_le(data, offset)?;
+    let _owner_trade_fee_numerator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_trade_fee_denominator = read_u64_le(data, offset)?;
+    let _owner_trade_fee_denominator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_withdraw_fee_numerator = read_u64_le(data, offset)?;
+    let _owner_withdraw_fee_numerator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_withdraw_fee_denominator = read_u64_le(data, offset)?;
+    let _owner_withdraw_fee_denominator = read_u64_le(data, offset)?;
 
     let pool = get_account(accounts, 0)?;
     let token_a_mint = get_account(accounts, 8)?;

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Raydium CLMM Inner Instruction 解析器
 //!
 //! ## 解析器插件系统
@@ -15,43 +16,32 @@
 //! - **适用**: 性能关键路径、每秒数万次解析的场景
 
 use crate::core::events::*;
+#[cfg(feature = "parse-zero-copy")]
 use crate::instr::inner_common::*;
+#[cfg(feature = "parse-zero-copy")]
 use solana_sdk::pubkey::Pubkey;
-
-#[cfg(feature = "parse-borsh")]
-use borsh::BorshDeserialize;
 
 /// Raydium CLMM inner instruction discriminators (16 bytes)
 pub mod discriminators {
     /// SwapEvent
-    pub const SWAP: [u8; 16] = [
-        248, 198, 158, 145, 225, 117, 135, 200,
-        155, 167, 108, 32, 122, 76, 173, 64,
-    ];
+    pub const SWAP: [u8; 16] =
+        [248, 198, 158, 145, 225, 117, 135, 200, 155, 167, 108, 32, 122, 76, 173, 64];
 
     /// IncreaseLiquidityEvent
-    pub const INCREASE_LIQUIDITY: [u8; 16] = [
-        133, 29, 89, 223, 69, 238, 176, 10,
-        155, 167, 108, 32, 122, 76, 173, 64,
-    ];
+    pub const INCREASE_LIQUIDITY: [u8; 16] =
+        [133, 29, 89, 223, 69, 238, 176, 10, 155, 167, 108, 32, 122, 76, 173, 64];
 
     /// DecreaseLiquidityEvent
-    pub const DECREASE_LIQUIDITY: [u8; 16] = [
-        160, 38, 208, 111, 104, 91, 44, 1,
-        155, 167, 108, 32, 122, 76, 173, 64,
-    ];
+    pub const DECREASE_LIQUIDITY: [u8; 16] =
+        [160, 38, 208, 111, 104, 91, 44, 1, 155, 167, 108, 32, 122, 76, 173, 64];
 
     /// CreatePoolEvent
-    pub const CREATE_POOL: [u8; 16] = [
-        233, 146, 209, 142, 207, 104, 64, 188,
-        155, 167, 108, 32, 122, 76, 173, 64,
-    ];
+    pub const CREATE_POOL: [u8; 16] =
+        [233, 146, 209, 142, 207, 104, 64, 188, 155, 167, 108, 32, 122, 76, 173, 64];
 
     /// CollectFeeEvent
-    pub const COLLECT_FEE: [u8; 16] = [
-        164, 152, 207, 99, 187, 104, 171, 119,
-        155, 167, 108, 32, 122, 76, 173, 64,
-    ];
+    pub const COLLECT_FEE: [u8; 16] =
+        [164, 152, 207, 99, 187, 104, 171, 119, 155, 167, 108, 32, 122, 76, 173, 64];
 }
 
 #[inline]
@@ -60,12 +50,12 @@ pub fn parse_raydium_clmm_inner_instruction(
     data: &[u8],
     metadata: EventMetadata,
 ) -> Option<DexEvent> {
-    match discriminator {
-        &discriminators::SWAP => parse_swap_inner(data, metadata),
-        &discriminators::INCREASE_LIQUIDITY => parse_increase_liquidity_inner(data, metadata),
-        &discriminators::DECREASE_LIQUIDITY => parse_decrease_liquidity_inner(data, metadata),
-        &discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
-        &discriminators::COLLECT_FEE => parse_collect_fee_inner(data, metadata),
+    match *discriminator {
+        discriminators::SWAP => parse_swap_inner(data, metadata),
+        discriminators::INCREASE_LIQUIDITY => parse_increase_liquidity_inner(data, metadata),
+        discriminators::DECREASE_LIQUIDITY => parse_decrease_liquidity_inner(data, metadata),
+        discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
+        discriminators::COLLECT_FEE => parse_collect_fee_inner(data, metadata),
         _ => None,
     }
 }
@@ -80,14 +70,13 @@ pub fn parse_raydium_clmm_inner_instruction(
 #[inline(always)]
 fn parse_swap_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_swap_inner_borsh(data, metadata)
-    }
+    return parse_swap_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_swap_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_swap_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - Swap 事件
@@ -114,10 +103,7 @@ fn parse_swap_inner_borsh(data: &[u8], metadata: EventMetadata) -> Option<DexEve
 
     let event = borsh::from_slice::<RaydiumClmmSwapEvent>(&data[..SWAP_EVENT_SIZE]).ok()?;
 
-    Some(DexEvent::RaydiumClmmSwap(RaydiumClmmSwapEvent {
-        metadata,
-        ..event
-    }))
+    Some(DexEvent::RaydiumClmmSwap(RaydiumClmmSwapEvent { metadata, ..event }))
 }
 
 /// 零拷贝解析器 - Swap 事件
@@ -183,14 +169,13 @@ fn parse_swap_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<De
 #[inline(always)]
 fn parse_increase_liquidity_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_increase_liquidity_inner_borsh(data, metadata)
-    }
+    return parse_increase_liquidity_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_increase_liquidity_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_increase_liquidity_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - IncreaseLiquidity 事件
@@ -221,7 +206,10 @@ fn parse_increase_liquidity_inner_borsh(data: &[u8], metadata: EventMetadata) ->
 /// 零拷贝解析器 - IncreaseLiquidity 事件
 #[cfg(feature = "parse-zero-copy")]
 #[inline(always)]
-fn parse_increase_liquidity_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+fn parse_increase_liquidity_inner_zero_copy(
+    data: &[u8],
+    metadata: EventMetadata,
+) -> Option<DexEvent> {
     unsafe {
         if !check_length(data, 32 + 32 + 8 + 8 + 16) {
             return None;
@@ -258,14 +246,13 @@ fn parse_increase_liquidity_inner_zero_copy(data: &[u8], metadata: EventMetadata
 #[inline(always)]
 fn parse_decrease_liquidity_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_decrease_liquidity_inner_borsh(data, metadata)
-    }
+    return parse_decrease_liquidity_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_decrease_liquidity_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_decrease_liquidity_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - DecreaseLiquidity 事件
@@ -296,7 +283,10 @@ fn parse_decrease_liquidity_inner_borsh(data: &[u8], metadata: EventMetadata) ->
 /// 零拷贝解析器 - DecreaseLiquidity 事件
 #[cfg(feature = "parse-zero-copy")]
 #[inline(always)]
-fn parse_decrease_liquidity_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+fn parse_decrease_liquidity_inner_zero_copy(
+    data: &[u8],
+    metadata: EventMetadata,
+) -> Option<DexEvent> {
     unsafe {
         if !check_length(data, 32 + 32 + 8 + 8 + 16) {
             return None;
@@ -333,14 +323,13 @@ fn parse_decrease_liquidity_inner_zero_copy(data: &[u8], metadata: EventMetadata
 #[inline(always)]
 fn parse_create_pool_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_create_pool_inner_borsh(data, metadata)
-    }
+    return parse_create_pool_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_create_pool_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_create_pool_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - CreatePool 事件
@@ -363,10 +352,7 @@ fn parse_create_pool_inner_borsh(data: &[u8], metadata: EventMetadata) -> Option
 
     let event = borsh::from_slice::<RaydiumClmmCreatePoolEvent>(&data[..EVENT_SIZE]).ok()?;
 
-    Some(DexEvent::RaydiumClmmCreatePool(RaydiumClmmCreatePoolEvent {
-        metadata,
-        ..event
-    }))
+    Some(DexEvent::RaydiumClmmCreatePool(RaydiumClmmCreatePoolEvent { metadata, ..event }))
 }
 
 /// 零拷贝解析器 - CreatePool 事件
@@ -413,14 +399,13 @@ fn parse_create_pool_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Op
 #[inline(always)]
 fn parse_collect_fee_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_collect_fee_inner_borsh(data, metadata)
-    }
+    return parse_collect_fee_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_collect_fee_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_collect_fee_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - CollectFee 事件
@@ -441,10 +426,7 @@ fn parse_collect_fee_inner_borsh(data: &[u8], metadata: EventMetadata) -> Option
 
     let event = borsh::from_slice::<RaydiumClmmCollectFeeEvent>(&data[..EVENT_SIZE]).ok()?;
 
-    Some(DexEvent::RaydiumClmmCollectFee(RaydiumClmmCollectFeeEvent {
-        metadata,
-        ..event
-    }))
+    Some(DexEvent::RaydiumClmmCollectFee(RaydiumClmmCollectFeeEvent { metadata, ..event }))
 }
 
 /// 零拷贝解析器 - CollectFee 事件

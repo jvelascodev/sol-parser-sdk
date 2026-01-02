@@ -86,10 +86,8 @@ fn parse_buy_instruction(
     };
 
     let mint = get_account(accounts, 2)?;
-    let metadata = create_metadata(
-        signature, slot, tx_index,
-        block_time_us.unwrap_or_default(), grpc_recv_us
-    );
+    let metadata =
+        create_metadata(signature, slot, tx_index, block_time_us.unwrap_or_default(), grpc_recv_us);
 
     Some(DexEvent::PumpFunTrade(PumpFunTradeEvent {
         metadata,
@@ -131,10 +129,8 @@ fn parse_sell_instruction(
     };
 
     let mint = get_account(accounts, 2)?;
-    let metadata = create_metadata(
-        signature, slot, tx_index,
-        block_time_us.unwrap_or_default(), grpc_recv_us
-    );
+    let metadata =
+        create_metadata(signature, slot, tx_index, block_time_us.unwrap_or_default(), grpc_recv_us);
 
     Some(DexEvent::PumpFunTrade(PumpFunTradeEvent {
         metadata,
@@ -200,10 +196,8 @@ fn parse_create_instruction(
     };
 
     let mint = get_account(accounts, 0)?;
-    let metadata = create_metadata(
-        signature, slot, tx_index,
-        block_time_us.unwrap_or_default(), grpc_recv_us
-    );
+    let metadata =
+        create_metadata(signature, slot, tx_index, block_time_us.unwrap_or_default(), grpc_recv_us);
 
     Some(DexEvent::PumpFunCreate(PumpFunCreateTokenEvent {
         metadata,
@@ -221,7 +215,7 @@ fn parse_create_instruction(
 /// Parse Migrate CPI instruction
 fn parse_migrate_log_instruction(
     data: &[u8],
-    accounts: &[Pubkey],
+    _accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
     tx_index: u64,

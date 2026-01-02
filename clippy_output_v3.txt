@@ -1,0 +1,683 @@
+    Checking sol-parser-sdk v0.1.0 (/home/jvelasco/Documents/sdk/sol-parser-sdk)
+error: function `read_u64_unchecked` is never used
+  --> src/instr/pump_inner.rs:57:11
+   |
+57 | unsafe fn read_u64_unchecked(data: &[u8], offset: usize) -> u64 {
+   |           ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(dead_code)]`
+
+error: function `read_i64_unchecked` is never used
+  --> src/instr/pump_inner.rs:64:11
+   |
+64 | unsafe fn read_i64_unchecked(data: &[u8], offset: usize) -> i64 {
+   |           ^^^^^^^^^^^^^^^^^^
+
+error: function `read_bool_unchecked` is never used
+  --> src/instr/pump_inner.rs:71:11
+   |
+71 | unsafe fn read_bool_unchecked(data: &[u8], offset: usize) -> bool {
+   |           ^^^^^^^^^^^^^^^^^^^
+
+error: function `read_pubkey_unchecked` is never used
+  --> src/instr/pump_inner.rs:77:11
+   |
+77 | unsafe fn read_pubkey_unchecked(data: &[u8], offset: usize) -> solana_sdk::pubkey::Pubkey {
+   |           ^^^^^^^^^^^^^^^^^^^^^
+
+error: function `read_str_unchecked` is never used
+  --> src/instr/pump_inner.rs:87:11
+   |
+87 | unsafe fn read_str_unchecked(data: &[u8], offset: usize) -> Option<(&str, usize)> {
+   |           ^^^^^^^^^^^^^^^^^^
+
+error: function `read_u32_unchecked` is never used
+   --> src/instr/pump_inner.rs:104:11
+    |
+104 | unsafe fn read_u32_unchecked(data: &[u8], offset: usize) -> u32 {
+    |           ^^^^^^^^^^^^^^^^^^
+
+error: function `parse_trade_event_inner_zero_copy` is never used
+   --> src/instr/pump_inner.rs:182:4
+    |
+182 | fn parse_trade_event_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_create_event_inner_zero_copy` is never used
+   --> src/instr/pump_inner.rs:345:4
+    |
+345 | fn parse_create_event_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_migrate_event_inner_zero_copy` is never used
+   --> src/instr/pump_inner.rs:462:4
+    |
+462 | fn parse_migrate_event_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_buy_inner_zero_copy` is never used
+   --> src/instr/pump_amm_inner.rs:134:4
+    |
+134 | fn parse_buy_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_sell_inner_zero_copy` is never used
+   --> src/instr/pump_amm_inner.rs:318:4
+    |
+318 | fn parse_sell_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_swap_inner_zero_copy` is never used
+   --> src/instr/raydium_clmm_inner.rs:113:4
+    |
+113 | fn parse_swap_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_increase_liquidity_inner_zero_copy` is never used
+   --> src/instr/raydium_clmm_inner.rs:208:4
+    |
+208 | fn parse_increase_liquidity_inner_zero_copy(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_decrease_liquidity_inner_zero_copy` is never used
+   --> src/instr/raydium_clmm_inner.rs:285:4
+    |
+285 | fn parse_decrease_liquidity_inner_zero_copy(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_create_pool_inner_zero_copy` is never used
+   --> src/instr/raydium_clmm_inner.rs:360:4
+    |
+360 | fn parse_create_pool_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `parse_collect_fee_inner_zero_copy` is never used
+   --> src/instr/raydium_clmm_inner.rs:434:4
+    |
+434 | fn parse_collect_fee_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: this function has too many arguments (9/7)
+  --> src/core/unified_parser.rs:82:1
+   |
+82 | / pub fn parse_transaction_with_listener<T: EventListener>(
+83 | |     instruction_data: &[u8],
+84 | |     accounts: &[Pubkey],
+85 | |     logs: &[String],
+...  |
+91 | |     listener: &T,
+92 | | ) {
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+   = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: this function has too many arguments (9/7)
+   --> src/core/unified_parser.rs:113:1
+    |
+113 | / pub fn parse_transaction_events_streaming<F>(
+114 | |     _instruction_data: &[u8],
+115 | |     _accounts: &[Pubkey],
+116 | |     logs: &[String],
+...   |
+123 | | ) where
+124 | |     F: FnMut(DexEvent),
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (9/7)
+   --> src/core/unified_parser.rs:168:1
+    |
+168 | / pub fn parse_transaction_with_streaming_listener<T: StreamingEventListener>(
+169 | |     instruction_data: &[u8],
+170 | |     accounts: &[Pubkey],
+171 | |     logs: &[String],
+...   |
+177 | |     listener: &mut T,
+178 | | ) {
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: casting to the same type is unnecessary (`i64` -> `i64`)
+  --> src/instr/utils.rs:34:36
+   |
+34 |         (ts.tv_sec * 1_000_000) + (ts.tv_nsec as i64 / 1_000)
+   |                                    ^^^^^^^^^^^^^^^^^ help: try: `ts.tv_nsec`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#unnecessary_cast
+   = note: `-D clippy::unnecessary-cast` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::unnecessary_cast)]`
+
+error: writing `&Vec` instead of `&[_]` involves a new object where a slice will do
+   --> src/instr/utils.rs:165:32
+    |
+165 |     loaded_writable_addresses: &'a Vec<Vec<u8>>,
+    |                                ^^^^^^^^^^^^^^^^ help: change this to: `&'a [Vec<u8>]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#ptr_arg
+    = note: `-D clippy::ptr-arg` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::ptr_arg)]`
+
+error: writing `&Vec` instead of `&[_]` involves a new object where a slice will do
+   --> src/instr/utils.rs:166:32
+    |
+166 |     loaded_readonly_addresses: &'a Vec<Vec<u8>>,
+    |                                ^^^^^^^^^^^^^^^^ help: change this to: `&'a [Vec<u8>]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#ptr_arg
+
+error: writing `&Vec` instead of `&[_]` involves a new object where a slice will do
+   --> src/instr/utils.rs:261:32
+    |
+261 |     loaded_writable_addresses: &'a Vec<Vec<u8>>,
+    |                                ^^^^^^^^^^^^^^^^ help: change this to: `&'a [Vec<u8>]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#ptr_arg
+
+error: writing `&Vec` instead of `&[_]` involves a new object where a slice will do
+   --> src/instr/utils.rs:262:32
+    |
+262 |     loaded_readonly_addresses: &'a Vec<Vec<u8>>,
+    |                                ^^^^^^^^^^^^^^^^ help: change this to: `&'a [Vec<u8>]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#ptr_arg
+
+error: unsafe function's docs are missing a `# Safety` section
+ --> src/instr/inner_common.rs:7:1
+  |
+7 | pub unsafe fn read_u8_unchecked(data: &[u8], offset: usize) -> u8 {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+  = note: `-D clippy::missing-safety-doc` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::missing_safety_doc)]`
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:13:1
+   |
+13 | pub unsafe fn read_u16_unchecked(data: &[u8], offset: usize) -> u16 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:20:1
+   |
+20 | pub unsafe fn read_u32_unchecked(data: &[u8], offset: usize) -> u32 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:27:1
+   |
+27 | pub unsafe fn read_u64_unchecked(data: &[u8], offset: usize) -> u64 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:34:1
+   |
+34 | pub unsafe fn read_u128_unchecked(data: &[u8], offset: usize) -> u128 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:41:1
+   |
+41 | pub unsafe fn read_i32_unchecked(data: &[u8], offset: usize) -> i32 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:48:1
+   |
+48 | pub unsafe fn read_i64_unchecked(data: &[u8], offset: usize) -> i64 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:55:1
+   |
+55 | pub unsafe fn read_i128_unchecked(data: &[u8], offset: usize) -> i128 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:62:1
+   |
+62 | pub unsafe fn read_bool_unchecked(data: &[u8], offset: usize) -> bool {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:68:1
+   |
+68 | pub unsafe fn read_pubkey_unchecked(data: &[u8], offset: usize) -> solana_sdk::pubkey::Pubkey {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/instr/inner_common.rs:78:1
+   |
+78 | pub unsafe fn read_string_unchecked(data: &[u8], offset: usize) -> Option<(String, usize)> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: you don't need to add `&` to all patterns
+   --> src/instr/pump_inner.rs:128:5
+    |
+128 | /     match discriminator {
+129 | |         &discriminators::TRADE_EVENT => parse_trade_event_inner(data, metadata),
+130 | |         &discriminators::CREATE_TOKEN_EVENT => parse_create_event_inner(data, metadata),
+131 | |         &discriminators::COMPLETE_PUMP_AMM_MIGRATION_EVENT => {
+...   |
+134 | |         _ => None,
+135 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+    = note: `-D clippy::match-ref-pats` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::match_ref_pats)]`
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+    |
+128 ~     match *discriminator {
+129 ~         discriminators::TRADE_EVENT => parse_trade_event_inner(data, metadata),
+130 ~         discriminators::CREATE_TOKEN_EVENT => parse_create_event_inner(data, metadata),
+131 ~         discriminators::COMPLETE_PUMP_AMM_MIGRATION_EVENT => {
+    |
+
+error: you don't need to add `&` to all patterns
+  --> src/instr/pump_amm_inner.rs:80:5
+   |
+80 | /     match discriminator {
+81 | |         &discriminators::BUY => parse_buy_inner(data, metadata),
+82 | |         &discriminators::SELL => parse_sell_inner(data, metadata),
+83 | |         &discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
+...  |
+86 | |         _ => None,
+87 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+   |
+80 ~     match *discriminator {
+81 ~         discriminators::BUY => parse_buy_inner(data, metadata),
+82 ~         discriminators::SELL => parse_sell_inner(data, metadata),
+83 ~         discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
+84 ~         discriminators::ADD_LIQUIDITY => parse_add_liquidity_inner(data, metadata),
+85 ~         discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity_inner(data, metadata),
+   |
+
+error: you don't need to add `&` to all patterns
+  --> src/instr/raydium_clmm_inner.rs:52:5
+   |
+52 | /     match discriminator {
+53 | |         &discriminators::SWAP => parse_swap_inner(data, metadata),
+54 | |         &discriminators::INCREASE_LIQUIDITY => parse_increase_liquidity_inner(data, metadata),
+55 | |         &discriminators::DECREASE_LIQUIDITY => parse_decrease_liquidity_inner(data, metadata),
+...  |
+58 | |         _ => None,
+59 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+   |
+52 ~     match *discriminator {
+53 ~         discriminators::SWAP => parse_swap_inner(data, metadata),
+54 ~         discriminators::INCREASE_LIQUIDITY => parse_increase_liquidity_inner(data, metadata),
+55 ~         discriminators::DECREASE_LIQUIDITY => parse_decrease_liquidity_inner(data, metadata),
+56 ~         discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
+57 ~         discriminators::COLLECT_FEE => parse_collect_fee_inner(data, metadata),
+   |
+
+error: you don't need to add `&` to all patterns
+   --> src/instr/all_inner.rs:532:9
+    |
+532 | /         match disc {
+533 | |             &discriminators::TRADED => parse_swap(data, metadata),
+534 | |             &discriminators::LIQUIDITY_INCREASED => parse_liquidity_increased(data, metadata),
+535 | |             &discriminators::LIQUIDITY_DECREASED => parse_liquidity_decreased(data, metadata),
+536 | |             _ => None,
+537 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+    |
+532 ~         match *disc {
+533 ~             discriminators::TRADED => parse_swap(data, metadata),
+534 ~             discriminators::LIQUIDITY_INCREASED => parse_liquidity_increased(data, metadata),
+535 ~             discriminators::LIQUIDITY_DECREASED => parse_liquidity_decreased(data, metadata),
+    |
+
+error: you don't need to add `&` to all patterns
+   --> src/instr/all_inner.rs:753:13
+    |
+753 | /             match disc {
+754 | |                 &discriminators::SWAP => {
+755 | |                     if !check_length(data, 8 + 8) {
+756 | |                         return None;
+...   |
+797 | |                 _ => None,
+798 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+    |
+753 ~             match *disc {
+754 ~                 discriminators::SWAP => {
+755 |                     if !check_length(data, 8 + 8) {
+...
+768 |                 }
+769 ~                 discriminators::ADD_LIQUIDITY => {
+770 |                     if !check_length(data, 8 + 8 + 8) {
+...
+782 |                 }
+783 ~                 discriminators::REMOVE_LIQUIDITY => {
+    |
+
+error: you don't need to add `&` to all patterns
+   --> src/instr/all_inner.rs:840:9
+    |
+840 | /         match disc {
+841 | |             &discriminators::SWAP => parse_swap(data, metadata),
+842 | |             &discriminators::ADD_LIQUIDITY => parse_add_liquidity(data, metadata),
+843 | |             &discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity(data, metadata),
+...   |
+846 | |             _ => None,
+847 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+    |
+840 ~         match *disc {
+841 ~             discriminators::SWAP => parse_swap(data, metadata),
+842 ~             discriminators::ADD_LIQUIDITY => parse_add_liquidity(data, metadata),
+843 ~             discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity(data, metadata),
+844 ~             discriminators::CREATE_POSITION => parse_create_position(data, metadata),
+845 ~             discriminators::CLOSE_POSITION => parse_close_position(data, metadata),
+    |
+
+error: you don't need to add `&` to all patterns
+    --> src/instr/all_inner.rs:1295:9
+     |
+1295 | /         match disc {
+1296 | |             &discriminators::SWAP => parse_swap(data, metadata),
+1297 | |             &discriminators::ADD_LIQUIDITY => parse_add_liquidity(data, metadata),
+1298 | |             &discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity(data, metadata),
+...    |
+1304 | |             _ => None,
+1305 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#match_ref_pats
+help: instead of prefixing all patterns with `&`, you can dereference the expression
+     |
+1295 ~         match *disc {
+1296 ~             discriminators::SWAP => parse_swap(data, metadata),
+1297 ~             discriminators::ADD_LIQUIDITY => parse_add_liquidity(data, metadata),
+1298 ~             discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity(data, metadata),
+1299 ~             discriminators::INITIALIZE_POOL => parse_initialize_pool(data, metadata),
+1300 ~             discriminators::INITIALIZE_BIN_ARRAY => parse_initialize_bin_array(data, metadata),
+1301 ~             discriminators::CREATE_POSITION => parse_create_position(data, metadata),
+1302 ~             discriminators::CLOSE_POSITION => parse_close_position(data, metadata),
+1303 ~             discriminators::CLAIM_FEE => parse_claim_fee(data, metadata),
+     |
+
+error: this function has too many arguments (9/7)
+  --> src/instr/mod.rs:41:1
+   |
+41 | / pub fn parse_instruction_unified(
+42 | |     instruction_data: &[u8],
+43 | |     accounts: &[Pubkey],
+44 | |     signature: Signature,
+...  |
+50 | |     program_id: &Pubkey,
+51 | | ) -> Option<DexEvent> {
+   | |_____________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (9/7)
+   --> src/logs/optimized_matcher.rs:248:1
+    |
+248 | / pub fn parse_log_optimized(
+249 | |     log: &str,
+250 | |     signature: Signature,
+251 | |     slot: u64,
+...   |
+257 | |     has_dev_buy: bool,
+258 | | ) -> Option<DexEvent> {
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/logs/perf_hints.rs:29:1
+   |
+29 | pub unsafe fn prefetch_read<T>(ptr: *const T) {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: unsafe function's docs are missing a `# Safety` section
+  --> src/logs/perf_hints.rs:39:1
+   |
+39 | pub unsafe fn prefetch_write<T>(ptr: *const T) {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#missing_safety_doc
+
+error: this function has too many arguments (8/7)
+   --> src/logs/pump.rs:186:1
+    |
+186 | / pub fn parse_log(
+187 | |     log: &str,
+188 | |     signature: Signature,
+189 | |     slot: u64,
+...   |
+194 | |     has_dev_buy: bool,
+195 | | ) -> Option<DexEvent> {
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: using `clone` on type `u8` which implements the `Copy` trait
+   --> src/logs/raydium_amm.rs:252:17
+    |
+252 |     let nonce = data.get(offset)?.clone();
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^ help: try dereferencing it: `*data.get(offset)?`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#clone_on_copy
+    = note: `-D clippy::clone-on-copy` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::clone_on_copy)]`
+
+error: using `clone` on type `u8` which implements the `Copy` trait
+   --> src/logs/raydium_amm.rs:510:17
+    |
+510 |     let nonce = data.get(offset)?.clone();
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^ help: try dereferencing it: `*data.get(offset)?`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#clone_on_copy
+
+error: casting to the same type is unnecessary (`i64` -> `i64`)
+   --> src/logs/utils.rs:185:10
+    |
+185 |         (ts.tv_sec as i64 * 1_000_000) + (ts.tv_nsec as i64 / 1_000)
+    |          ^^^^^^^^^^^^^^^^ help: try: `ts.tv_sec`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#unnecessary_cast
+
+error: casting to the same type is unnecessary (`i64` -> `i64`)
+   --> src/logs/utils.rs:185:43
+    |
+185 |         (ts.tv_sec as i64 * 1_000_000) + (ts.tv_nsec as i64 / 1_000)
+    |                                           ^^^^^^^^^^^^^^^^^ help: try: `ts.tv_nsec`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#unnecessary_cast
+
+error: this function has too many arguments (9/7)
+  --> src/logs/mod.rs:51:1
+   |
+51 | / pub fn parse_log(
+52 | |     log: &str,
+53 | |     signature: Signature,
+54 | |     slot: u64,
+...  |
+60 | |     has_dev_buy: bool,
+61 | | ) -> Option<DexEvent> {
+   | |_____________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: casting to the same type is unnecessary (`i64` -> `i64`)
+  --> src/logs/mod.rs:86:9
+   |
+86 |         (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+   |         ^^^^^^^^^^^^^^^^^^ help: try: `ts.tv_sec`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#unnecessary_cast
+
+error: casting to the same type is unnecessary (`i64` -> `i64`)
+  --> src/logs/mod.rs:86:42
+   |
+86 |         (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+   |                                          ^^^^^^^^^^^^^^^^^^^ help: try: `ts.tv_nsec`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#unnecessary_cast
+
+error: needless `fn main` in doctest
+  --> src/warmup.rs:20:5
+   |
+20 |   /// use sol_parser_sdk::warmup_parser;
+   |  _____^
+21 | | ///
+22 | | /// fn main() {
+23 | | ///     // 启动时预热
+...  |
+26 | | ///     // 后续解析将没有初始化延迟
+27 | | /// }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#needless_doctest_main
+   = note: `-D clippy::needless-doctest-main` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::needless_doctest_main)]`
+
+error: this function has too many arguments (9/7)
+   --> src/grpc/client.rs:226:5
+    |
+226 | /     fn check_timeout(
+227 | |         &self,
+228 | |         mode: OrderMode,
+229 | |         slot_buf: &mut SlotBuffer,
+...   |
+235 | |         interval: Duration,
+236 | |     ) {
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (9/7)
+   --> src/grpc/client.rs:288:5
+    |
+288 | /     fn handle_update(
+289 | |         &self,
+290 | |         update_msg: SubscribeUpdate,
+291 | |         mode: OrderMode,
+...   |
+297 | |         batch_us: u64,
+298 | |     ) {
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (11/7)
+   --> src/grpc/client.rs:328:5
+    |
+328 | /     fn handle_transaction(
+329 | |         &self,
+330 | |         tx: SubscribeUpdateTransaction,
+331 | |         mode: OrderMode,
+...   |
+339 | |         block_us: i64,
+340 | |     ) {
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (9/7)
+   --> src/grpc/client.rs:542:1
+    |
+542 | / fn parse_logs(
+543 | |     meta: &TransactionStatusMeta,
+544 | |     transaction: &Option<yellowstone_grpc_proto::prelude::Transaction>,
+545 | |     logs: &[String],
+...   |
+551 | |     filter: Option<&EventTypeFilter>,
+552 | | ) -> Vec<DexEvent> {
+    | |__________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (8/7)
+   --> src/grpc/client.rs:615:1
+    |
+615 | / fn parse_instructions(
+616 | |     meta: &TransactionStatusMeta,
+617 | |     transaction: &Option<yellowstone_grpc_proto::prelude::Transaction>,
+618 | |     sig: solana_sdk::signature::Signature,
+...   |
+623 | |     filter: Option<&EventTypeFilter>,
+624 | | ) -> Vec<DexEvent> {
+    | |__________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (8/7)
+  --> src/grpc/instruction_parser.rs:30:1
+   |
+30 | / pub fn parse_instructions_enhanced(
+31 | |     meta: &TransactionStatusMeta,
+32 | |     transaction: &Option<Transaction>,
+33 | |     sig: Signature,
+...  |
+38 | |     filter: Option<&EventTypeFilter>,
+39 | | ) -> Vec<DexEvent> {
+   | |__________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: this function has too many arguments (10/7)
+   --> src/grpc/instruction_parser.rs:145:1
+    |
+145 | / fn parse_outer_instruction<'a>(
+146 | |     data: &[u8],
+147 | |     program_id: &Pubkey,
+148 | |     sig: Signature,
+...   |
+155 | |     filter: Option<&EventTypeFilter>,
+156 | | ) -> Option<DexEvent> {
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#too_many_arguments
+
+error: could not compile `sol-parser-sdk` (lib) due to 62 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `sol-parser-sdk` (lib test) due to 62 previous errors

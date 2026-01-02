@@ -18,7 +18,7 @@ pub fn fill_data(
             {
                 let data = get_instruction_data(meta, transaction, invoke);
                 if data.is_some() {
-                    let is_pump_pool = read_bool(&data.unwrap_or_default(), 9).unwrap_or_default();
+                    let is_pump_pool = read_bool(data.unwrap_or_default(), 9).unwrap_or_default();
                     event.is_pump_pool = is_pump_pool;
                 }
             }
@@ -31,7 +31,7 @@ pub fn fill_data(
             {
                 let data = get_instruction_data(meta, transaction, invoke);
                 if data.is_some() {
-                    let is_pump_pool = read_bool(&data.unwrap_or_default(), 9).unwrap_or_default();
+                    let is_pump_pool = read_bool(data.unwrap_or_default(), 9).unwrap_or_default();
                     event.is_pump_pool = is_pump_pool;
                 }
             }
@@ -56,5 +56,5 @@ pub fn get_instruction_data<'a>(
     } else {
         transaction.as_ref()?.message.as_ref()?.instructions.get(index.0 as usize)?.data.as_slice()
     };
-    return Some(data);
+    Some(data)
 }

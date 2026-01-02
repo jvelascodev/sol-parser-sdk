@@ -8,7 +8,7 @@
 
 use super::buffers::{MicroBatchBuffer, SlotBuffer};
 use super::types::*;
-use crate::core::{EventMetadata, now_micros};  // 导入高性能时钟
+use crate::core::{now_micros, EventMetadata}; // 导入高性能时钟
 use crate::instr::read_pubkey_fast;
 use crate::logs::timestamp_to_microseconds;
 use crate::DexEvent;
@@ -17,7 +17,7 @@ use futures::{SinkExt, StreamExt};
 use log::error;
 use memchr::memmem;
 use once_cell::sync::Lazy;
-use solana_sdk::pubkey::Pubkey;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -40,7 +40,10 @@ pub struct YellowstoneGrpc {
 }
 
 impl YellowstoneGrpc {
-    pub fn new(endpoint: String, token: Option<String>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        endpoint: String,
+        token: Option<String>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         crate::warmup::warmup_parser();
         Ok(Self {
             endpoint,
@@ -73,7 +76,15 @@ impl YellowstoneGrpc {
         tokio::spawn(async move {
             let mut delay = 1u64;
             loop {
-                match self_clone.stream_events(&transaction_filters, &account_filters, &event_type_filter, &queue_clone).await {
+                match self_clone
+                    .stream_events(
+                        &transaction_filters,
+                        &account_filters,
+                        &event_type_filter,
+                        &queue_clone,
+                    )
+                    .await
+                {
                     Ok(_) => delay = 1,
                     Err(e) => println!("❌ gRPC error: {} - retry in {}s", e, delay),
                 }
@@ -91,11 +102,8 @@ impl YellowstoneGrpc {
         transaction_filters: Vec<TransactionFilter>,
         account_filters: Vec<AccountFilter>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let sender = self.control_tx.lock().await
-            .as_ref()
-            .ok_or("No active subscription")?
-            .clone();
-        
+        let sender = self.control_tx.lock().await.as_ref().ok_or("No active subscription")?.clone();
+
         let request = build_subscribe_request(&transaction_filters, &account_filters);
         sender.send(request).await.map_err(|e| e.to_string())?;
         Ok(())
@@ -115,7 +123,7 @@ impl YellowstoneGrpc {
         queue: &Arc<ArrayQueue<DexEvent>>,
     ) -> Result<(), String> {
         let _ = rustls::crypto::ring::default_provider().install_default();
-        
+
         // 构建客户端
         let mut builder = GeyserGrpcClient::build_from_shared(self.endpoint.clone())
             .map_err(|e| e.to_string())?
@@ -124,19 +132,20 @@ impl YellowstoneGrpc {
             .max_decoding_message_size(1024 * 1024 * 1024);
 
         if self.config.connection_timeout_ms > 0 {
-            builder = builder.connect_timeout(Duration::from_millis(self.config.connection_timeout_ms));
+            builder =
+                builder.connect_timeout(Duration::from_millis(self.config.connection_timeout_ms));
         }
         if self.config.enable_tls {
-            builder = builder.tls_config(ClientTlsConfig::new().with_native_roots()).map_err(|e| e.to_string())?;
+            builder = builder
+                .tls_config(ClientTlsConfig::new().with_native_roots())
+                .map_err(|e| e.to_string())?;
         }
 
         let mut client = builder.connect().await.map_err(|e| e.to_string())?;
         let request = build_subscribe_request(tx_filters, acc_filters);
-        
-        let (subscribe_tx, mut stream) = client
-            .subscribe_with_request(Some(request))
-            .await
-            .map_err(|e| e.to_string())?;
+
+        let (subscribe_tx, mut stream) =
+            client.subscribe_with_request(Some(request)).await.map_err(|e| e.to_string())?;
 
         self.print_mode_info();
 
@@ -159,8 +168,14 @@ impl YellowstoneGrpc {
         loop {
             // Periodic timeout check for ordered modes and MicroBatch
             self.check_timeout(
-                order_mode, &mut slot_buffer, &mut micro_batch, queue,
-                timeout_ms, batch_us, &mut next_check, check_interval
+                order_mode,
+                &mut slot_buffer,
+                &mut micro_batch,
+                queue,
+                timeout_ms,
+                batch_us,
+                &mut next_check,
+                check_interval,
             );
 
             tokio::select! {
@@ -195,13 +210,20 @@ impl YellowstoneGrpc {
     fn print_mode_info(&self) {
         match self.config.order_mode {
             OrderMode::Unordered => println!("✅ Unordered Mode (10-20μs)"),
-            OrderMode::Ordered => println!("✅ Ordered Mode (timeout={}ms)", self.config.order_timeout_ms),
-            OrderMode::StreamingOrdered => println!("✅ StreamingOrdered Mode (timeout={}ms)", self.config.order_timeout_ms),
-            OrderMode::MicroBatch => println!("✅ MicroBatch Mode (window={}μs)", self.config.micro_batch_us),
+            OrderMode::Ordered => {
+                println!("✅ Ordered Mode (timeout={}ms)", self.config.order_timeout_ms)
+            }
+            OrderMode::StreamingOrdered => {
+                println!("✅ StreamingOrdered Mode (timeout={}ms)", self.config.order_timeout_ms)
+            }
+            OrderMode::MicroBatch => {
+                println!("✅ MicroBatch Mode (window={}μs)", self.config.micro_batch_us)
+            }
         }
     }
 
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     fn check_timeout(
         &self,
         mode: OrderMode,
@@ -217,40 +239,54 @@ impl YellowstoneGrpc {
             return;
         }
         *next_check = Instant::now() + interval;
-        
+
         match mode {
             OrderMode::Ordered => {
                 if slot_buf.should_timeout(timeout_ms) {
-                    for e in slot_buf.flush_all() { let _ = queue.push(e); }
+                    for e in slot_buf.flush_all() {
+                        let _ = queue.push(e);
+                    }
                 }
             }
             OrderMode::StreamingOrdered => {
                 if slot_buf.should_timeout(timeout_ms) {
-                    for e in slot_buf.flush_streaming_timeout() { let _ = queue.push(e); }
+                    for e in slot_buf.flush_streaming_timeout() {
+                        let _ = queue.push(e);
+                    }
                 }
             }
             OrderMode::MicroBatch => {
                 // Periodic flush for MicroBatch mode
                 let now_us = get_timestamp_us();
                 if micro_buf.should_flush(now_us, batch_us) {
-                    for e in micro_buf.flush() { let _ = queue.push(e); }
+                    for e in micro_buf.flush() {
+                        let _ = queue.push(e);
+                    }
                 }
             }
             OrderMode::Unordered => {}
         }
     }
 
-    fn flush_on_disconnect(&self, mode: OrderMode, buffer: &mut SlotBuffer, queue: &Arc<ArrayQueue<DexEvent>>) {
+    fn flush_on_disconnect(
+        &self,
+        mode: OrderMode,
+        buffer: &mut SlotBuffer,
+        queue: &Arc<ArrayQueue<DexEvent>>,
+    ) {
         if matches!(mode, OrderMode::Ordered | OrderMode::StreamingOrdered) {
             let events = match mode {
                 OrderMode::StreamingOrdered => buffer.flush_streaming_timeout(),
                 _ => buffer.flush_all(),
             };
-            for e in events { let _ = queue.push(e); }
+            for e in events {
+                let _ = queue.push(e);
+            }
         }
     }
 
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     fn handle_update(
         &self,
         update_msg: SubscribeUpdate,
@@ -262,14 +298,26 @@ impl YellowstoneGrpc {
         last_slot: &mut u64,
         batch_us: u64,
     ) {
-        let block_time_us = timestamp_to_microseconds(&update_msg.created_at.unwrap_or_default()) as i64;
+        let block_time_us =
+            timestamp_to_microseconds(&update_msg.created_at.unwrap_or_default()) as i64;
         let grpc_recv_us = get_timestamp_us();
 
         let Some(update) = update_msg.update_oneof else { return };
 
         match update {
             subscribe_update::UpdateOneof::Transaction(tx) => {
-                self.handle_transaction(tx, mode, filter, queue, slot_buf, micro_buf, last_slot, batch_us, grpc_recv_us, block_time_us);
+                self.handle_transaction(
+                    tx,
+                    mode,
+                    filter,
+                    queue,
+                    slot_buf,
+                    micro_buf,
+                    last_slot,
+                    batch_us,
+                    grpc_recv_us,
+                    block_time_us,
+                );
             }
             subscribe_update::UpdateOneof::Account(acc) => {
                 Self::handle_account(acc, filter, queue, grpc_recv_us, block_time_us);
@@ -279,6 +327,7 @@ impl YellowstoneGrpc {
     }
 
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     fn handle_transaction(
         &self,
         tx: SubscribeUpdateTransaction,
@@ -293,7 +342,7 @@ impl YellowstoneGrpc {
         block_us: i64,
     ) {
         let slot = tx.slot;
-        
+
         match mode {
             OrderMode::Unordered => {
                 for e in parse_transaction_core(&tx, grpc_us, Some(block_us), filter.as_ref()) {
@@ -302,24 +351,34 @@ impl YellowstoneGrpc {
             }
             OrderMode::Ordered => {
                 if slot > *last_slot && *last_slot > 0 {
-                    for e in slot_buf.flush_before(slot) { let _ = queue.push(e); }
+                    for e in slot_buf.flush_before(slot) {
+                        let _ = queue.push(e);
+                    }
                 }
                 *last_slot = slot;
-                for (idx, e) in parse_transaction_to_vec(&tx, grpc_us, Some(block_us), filter.as_ref()) {
+                for (idx, e) in
+                    parse_transaction_to_vec(&tx, grpc_us, Some(block_us), filter.as_ref())
+                {
                     slot_buf.push(slot, idx, e);
                 }
             }
             OrderMode::StreamingOrdered => {
-                for (idx, e) in parse_transaction_to_vec(&tx, grpc_us, Some(block_us), filter.as_ref()) {
+                for (idx, e) in
+                    parse_transaction_to_vec(&tx, grpc_us, Some(block_us), filter.as_ref())
+                {
                     for evt in slot_buf.push_streaming(slot, idx, e) {
                         let _ = queue.push(evt);
                     }
                 }
             }
             OrderMode::MicroBatch => {
-                for (idx, e) in parse_transaction_to_vec(&tx, grpc_us, Some(block_us), filter.as_ref()) {
+                for (idx, e) in
+                    parse_transaction_to_vec(&tx, grpc_us, Some(block_us), filter.as_ref())
+                {
                     if micro_buf.push(slot, idx, e, grpc_us, batch_us) {
-                        for evt in micro_buf.flush() { let _ = queue.push(evt); }
+                        for evt in micro_buf.flush() {
+                            let _ = queue.push(evt);
+                        }
                     }
                 }
             }
@@ -371,26 +430,43 @@ fn get_timestamp_us() -> i64 {
     now_micros()
 }
 
-fn build_subscribe_request(tx_filters: &[TransactionFilter], acc_filters: &[AccountFilter]) -> SubscribeRequest {
-    let transactions = tx_filters.iter().enumerate().map(|(i, f)| {
-        (format!("tx_{}", i), SubscribeRequestFilterTransactions {
-            vote: Some(false),
-            failed: Some(false),
-            signature: None,
-            account_include: f.account_include.clone(),
-            account_exclude: f.account_exclude.clone(),
-            account_required: f.account_required.clone(),
+fn build_subscribe_request(
+    tx_filters: &[TransactionFilter],
+    acc_filters: &[AccountFilter],
+) -> SubscribeRequest {
+    let transactions = tx_filters
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            (
+                format!("tx_{}", i),
+                SubscribeRequestFilterTransactions {
+                    vote: Some(false),
+                    failed: Some(false),
+                    signature: None,
+                    account_include: f.account_include.clone(),
+                    account_exclude: f.account_exclude.clone(),
+                    account_required: f.account_required.clone(),
+                },
+            )
         })
-    }).collect();
+        .collect();
 
-    let accounts = acc_filters.iter().enumerate().map(|(i, f)| {
-        (format!("acc_{}", i), SubscribeRequestFilterAccounts {
-            account: f.account.clone(),
-            owner: f.owner.clone(),
-            filters: f.filters.clone(),
-            nonempty_txn_signature: None,
+    let accounts = acc_filters
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            (
+                format!("acc_{}", i),
+                SubscribeRequestFilterAccounts {
+                    account: f.account.clone(),
+                    owner: f.owner.clone(),
+                    filters: f.filters.clone(),
+                    nonempty_txn_signature: None,
+                },
+            )
         })
-    }).collect();
+        .collect();
 
     SubscribeRequest {
         slots: HashMap::new(),
@@ -417,10 +493,7 @@ fn parse_transaction_to_vec(
     filter: Option<&EventTypeFilter>,
 ) -> Vec<(u64, DexEvent)> {
     let idx = tx.transaction.as_ref().map(|t| t.index).unwrap_or(0);
-    parse_transaction_core(tx, grpc_us, block_us, filter)
-        .into_iter()
-        .map(|e| (idx, e))
-        .collect()
+    parse_transaction_core(tx, grpc_us, block_us, filter).into_iter().map(|e| (idx, e)).collect()
 }
 
 #[inline]
@@ -439,7 +512,19 @@ fn parse_transaction_core(
 
     // 并行解析 logs 和 instructions
     let (log_events, instr_events) = rayon::join(
-        || parse_logs(meta, &info.transaction, &meta.log_messages, sig, slot, idx, block_us, grpc_us, filter),
+        || {
+            parse_logs(
+                meta,
+                &info.transaction,
+                &meta.log_messages,
+                sig,
+                slot,
+                idx,
+                block_us,
+                grpc_us,
+                filter,
+            )
+        },
         || parse_instructions(meta, &info.transaction, sig, slot, idx, block_us, grpc_us, filter),
     );
 
@@ -457,6 +542,7 @@ fn extract_signature(bytes: &[u8]) -> solana_sdk::signature::Signature {
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn parse_logs(
     meta: &TransactionStatusMeta,
     transaction: &Option<yellowstone_grpc_proto::prelude::Transaction>,
@@ -479,16 +565,30 @@ fn parse_logs(
 
     for log in logs {
         if let Some((pid, depth)) = crate::logs::optimized_matcher::parse_invoke_info(log) {
-            if depth == 1 { inner_idx = -1; outer_idx += 1; } else { inner_idx += 1; }
+            if depth == 1 {
+                inner_idx = -1;
+                outer_idx += 1;
+            } else {
+                inner_idx += 1;
+            }
             invokes.entry(pid).or_default().push((outer_idx, inner_idx));
         }
 
-        if PROGRAM_DATA_FINDER.find(log.as_bytes()).is_none() { continue; }
+        if PROGRAM_DATA_FINDER.find(log.as_bytes()).is_none() {
+            continue;
+        }
 
         // has_create: passed as is_created_buy for Trade events
         // has_trade: passed as has_dev_buy for Create events
-        if let Some(mut e) = crate::logs::parse_log(log, sig, slot, tx_idx, block_us, grpc_us, filter, has_create, has_trade) {
-            crate::core::account_dispatcher::fill_accounts_from_transaction_data(&mut e, meta, transaction, &invokes);
+        if let Some(mut e) = crate::logs::parse_log(
+            log, sig, slot, tx_idx, block_us, grpc_us, filter, has_create, has_trade,
+        ) {
+            crate::core::account_dispatcher::fill_accounts_from_transaction_data(
+                &mut e,
+                meta,
+                transaction,
+                &invokes,
+            );
             crate::core::common_filler::fill_data(&mut e, meta, transaction, &invokes);
             result.push(e);
         }
@@ -496,7 +596,15 @@ fn parse_logs(
 
     // Post-processing fix: ensure created event has has_dev_buy=true if a trade exists in the same transaction
     // This handles cases where detect_pumpfun_trade might fail (e.g. CPI events) but the event is still parsed
-    if result.iter().any(|e| matches!(e, DexEvent::PumpFunTrade(_) | DexEvent::PumpFunBuy(_) | DexEvent::PumpFunSell(_) | DexEvent::PumpFunBuyExactSolIn(_))) {
+    if result.iter().any(|e| {
+        matches!(
+            e,
+            DexEvent::PumpFunTrade(_)
+                | DexEvent::PumpFunBuy(_)
+                | DexEvent::PumpFunSell(_)
+                | DexEvent::PumpFunBuyExactSolIn(_)
+        )
+    }) {
         for e in &mut result {
             if let DexEvent::PumpFunCreate(create) = e {
                 create.has_dev_buy = true;
@@ -508,6 +616,7 @@ fn parse_logs(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn parse_instructions(
     meta: &TransactionStatusMeta,
     transaction: &Option<yellowstone_grpc_proto::prelude::Transaction>,

@@ -33,7 +33,7 @@ pub fn parse_instruction(
         return None;
     }
 
-    let discriminator: [u8; 8] = instruction_data[0..8].try_into().ok()?;
+    let _discriminator: [u8; 8] = instruction_data[0..8].try_into().ok()?;
     let data = &instruction_data[8..];
 
     if instruction_data.len() < 16 {
@@ -44,61 +44,51 @@ pub fn parse_instruction(
     let cpi_data = &instruction_data[16..];
 
     match cpi_discriminator {
-        discriminators::SWAP_LOG => {
-            return parse_swap_log_instruction(
-                cpi_data,
-                accounts,
-                signature,
-                slot,
-                tx_index,
-                block_time_us,
-                grpc_recv_us,
-            )
-        }
-        discriminators::CREATE_POSITION_LOG => {
-            return parse_create_position_log_instruction(
-                cpi_data,
-                accounts,
-                signature,
-                slot,
-                tx_index,
-                block_time_us,
-                grpc_recv_us,
-            );
-        }
-        discriminators::CLOSE_POSITION_LOG => {
-            return parse_close_position_log_instruction(
-                data,
-                accounts,
-                signature,
-                slot,
-                tx_index,
-                block_time_us,
-                grpc_recv_us,
-            );
-        }
-        discriminators::ADD_LIQUIDITY_LOG => {
-            return parse_add_liquidity_log_instruction(
-                cpi_data,
-                accounts,
-                signature,
-                slot,
-                tx_index,
-                block_time_us,
-                grpc_recv_us,
-            );
-        }
-        discriminators::REMOVE_LIQUIDITY_LOG => {
-            return parse_remove_liquidity_log_instruction(
-                cpi_data,
-                accounts,
-                signature,
-                slot,
-                tx_index,
-                block_time_us,
-                grpc_recv_us,
-            );
-        }
+        discriminators::SWAP_LOG => parse_swap_log_instruction(
+            cpi_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        ),
+        discriminators::CREATE_POSITION_LOG => parse_create_position_log_instruction(
+            cpi_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        ),
+        discriminators::CLOSE_POSITION_LOG => parse_close_position_log_instruction(
+            data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        ),
+        discriminators::ADD_LIQUIDITY_LOG => parse_add_liquidity_log_instruction(
+            cpi_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        ),
+        discriminators::REMOVE_LIQUIDITY_LOG => parse_remove_liquidity_log_instruction(
+            cpi_data,
+            accounts,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        ),
         _ => None,
     }
 }
@@ -106,7 +96,7 @@ pub fn parse_instruction(
 /// 解析 Swap 指令
 fn parse_swap_log_instruction(
     data: &[u8],
-    accounts: &[Pubkey],
+    _accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
     tx_index: u64,
@@ -191,7 +181,7 @@ fn parse_swap_log_instruction(
 /// 解析 Create Position Log 指令
 fn parse_create_position_log_instruction(
     data: &[u8],
-    accounts: &[Pubkey],
+    _accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
     tx_index: u64,
@@ -230,7 +220,7 @@ fn parse_create_position_log_instruction(
 /// 解析 Close Position Log 指令
 fn parse_close_position_log_instruction(
     data: &[u8],
-    accounts: &[Pubkey],
+    _accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
     tx_index: u64,
@@ -269,7 +259,7 @@ fn parse_close_position_log_instruction(
 /// 解析 Add Liquidity Log 指令
 fn parse_add_liquidity_log_instruction(
     data: &[u8],
-    accounts: &[Pubkey],
+    _accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
     tx_index: u64,
@@ -338,7 +328,7 @@ fn parse_add_liquidity_log_instruction(
 /// 解析 Add Liquidity Log 指令
 fn parse_remove_liquidity_log_instruction(
     data: &[u8],
-    accounts: &[Pubkey],
+    _accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
     tx_index: u64,
@@ -377,7 +367,7 @@ fn parse_remove_liquidity_log_instruction(
 
     // tokenBAmount (u64 - 8 bytes)
     let token_b_amount = read_u64_le(data, offset)?;
-    offset += 8;
+    // offset += 8; // unused assignment
 
     let metadata =
         create_metadata(signature, slot, tx_index, block_time_us.unwrap_or_default(), rpc_recv_us);

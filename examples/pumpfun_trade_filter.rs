@@ -5,6 +5,7 @@
 //! - Filter specific trade types: Buy, Sell, BuyExactSolIn
 //! - Display trade details with latency metrics
 
+#![allow(warnings)]
 use sol_parser_sdk::grpc::{
     AccountFilter, ClientConfig, EventType, EventTypeFilter, OrderMode, Protocol,
     TransactionFilter, YellowstoneGrpc,
@@ -55,7 +56,7 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
     let account_filter = AccountFilter::for_protocols(&protocols);
 
     // ========== Event Type Filter Examples ==========
-    // 
+    //
     // Example 1: Subscribe to BUY events only
     // let event_filter = EventTypeFilter::include_only(vec![EventType::PumpFunBuy]);
     //
@@ -117,7 +118,7 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                 let now_us = unsafe {
                     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
                     libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-                    (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+                    ts.tv_sec * 1_000_000 + ts.tv_nsec / 1_000
                 };
 
                 match &event {
@@ -125,7 +126,7 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         buy_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
-                        
+
                         // Real latency metrics
                         let e2e_latency_us = now_us - e.metadata.block_time_us;
                         let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
@@ -136,7 +137,10 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🟢 PumpFun BUY #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Mint       : {}", e.mint);
                         println!("│ SOL Amount : {} lamports", e.sol_amount);
@@ -147,17 +151,25 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ creator: {}", e.creator);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Process Latency : {} μs", latency_us);
-                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!(
+                            "│ 📊 E2E Latency     : {} μs ({} ms)",
+                            e2e_latency_us, e2e_latency_ms
+                        );
                         println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
-                        println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "│ 📊 Stats   : Buy={} Sell={} BuyExact={}",
+                            buy_count, sell_count, buy_exact_count
+                        );
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
                     }
 
                     DexEvent::PumpFunSell(e) => {
                         sell_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
-                        
+
                         // Real latency metrics
                         let e2e_latency_us = now_us - e.metadata.block_time_us;
                         let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
@@ -168,7 +180,10 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🔴 PumpFun SELL #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Mint       : {}", e.mint);
                         println!("│ SOL Amount : {} lamports", e.sol_amount);
@@ -177,17 +192,25 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ ix_name    : {}", e.ix_name);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Process Latency : {} μs", latency_us);
-                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!(
+                            "│ 📊 E2E Latency     : {} μs ({} ms)",
+                            e2e_latency_us, e2e_latency_ms
+                        );
                         println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
-                        println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "│ 📊 Stats   : Buy={} Sell={} BuyExact={}",
+                            buy_count, sell_count, buy_exact_count
+                        );
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
                     }
 
                     DexEvent::PumpFunBuyExactSolIn(e) => {
                         buy_exact_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
-                        
+
                         // Real latency metrics
                         let e2e_latency_us = now_us - e.metadata.block_time_us;
                         let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
@@ -198,7 +221,10 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🟡 PumpFun BUY_EXACT_SOL_IN #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Mint       : {}", e.mint);
                         println!("│ SOL Amount : {} lamports (exact input)", e.sol_amount);
@@ -207,17 +233,25 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ ix_name    : {}", e.ix_name);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Process Latency : {} μs", latency_us);
-                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!(
+                            "│ 📊 E2E Latency     : {} μs ({} ms)",
+                            e2e_latency_us, e2e_latency_ms
+                        );
                         println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
-                        println!("│ 📊 Stats   : Buy={} Sell={} BuyExact={}", buy_count, sell_count, buy_exact_count);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "│ 📊 Stats   : Buy={} Sell={} BuyExact={}",
+                            buy_count, sell_count, buy_exact_count
+                        );
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
                     }
 
                     DexEvent::PumpFunTrade(e) => {
                         // Fallback for unknown trade types
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
-                        
+
                         // Real latency metrics
                         let e2e_latency_us = now_us - e.metadata.block_time_us;
                         let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
@@ -231,16 +265,21 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ Signature  : {}", e.metadata.signature);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Process Latency : {} μs", latency_us);
-                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!(
+                            "│ 📊 E2E Latency     : {} μs ({} ms)",
+                            e2e_latency_us, e2e_latency_ms
+                        );
                         println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
                     }
 
                     DexEvent::PumpFunCreate(e) => {
                         create_count += 1;
                         let latency_us = now_us - e.metadata.grpc_recv_us;
                         total_latency_us += latency_us;
-                        
+
                         // Real latency metrics
                         let e2e_latency_us = now_us - e.metadata.block_time_us;
                         let grpc_age_us = e.metadata.grpc_recv_us - e.metadata.block_time_us;
@@ -251,7 +290,10 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ 🆕 PumpFun CREATE #{}", event_count);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Signature  : {}", e.metadata.signature);
-                        println!("│ Slot       : {} | TxIndex: {}", e.metadata.slot, e.metadata.tx_index);
+                        println!(
+                            "│ Slot       : {} | TxIndex: {}",
+                            e.metadata.slot, e.metadata.tx_index
+                        );
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ Name       : {}", e.name);
                         println!("│ Symbol     : {}", e.symbol);
@@ -260,10 +302,15 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         println!("│ has_dev_buy: {}", e.has_dev_buy);
                         println!("├─────────────────────────────────────────────────────────────");
                         println!("│ 📊 Process Latency : {} μs", latency_us);
-                        println!("│ 📊 E2E Latency     : {} μs ({} ms)", e2e_latency_us, e2e_latency_ms);
+                        println!(
+                            "│ 📊 E2E Latency     : {} μs ({} ms)",
+                            e2e_latency_us, e2e_latency_ms
+                        );
                         println!("│ 📊 gRPC Age        : {} μs ({} ms)", grpc_age_us, grpc_age_ms);
                         println!("│ 📊 Creates : {}", create_count);
-                        println!("└─────────────────────────────────────────────────────────────\n");
+                        println!(
+                            "└─────────────────────────────────────────────────────────────\n"
+                        );
                     }
 
                     _ => {}

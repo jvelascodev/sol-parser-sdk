@@ -14,8 +14,8 @@ pub mod meteora_dlmm;
 pub mod optimized_matcher;
 pub mod orca_whirlpool;
 pub mod perf_hints;
-pub mod pump_amm;
 pub mod pump;
+pub mod pump_amm;
 pub mod raydium_amm;
 pub mod raydium_clmm;
 pub mod raydium_cpmm;
@@ -24,17 +24,20 @@ pub mod utils;
 pub mod zero_copy_parser;
 
 // 导出关键的 utils 函数
+pub use discriminator_lut::{
+    discriminator_to_name, discriminator_to_protocol, lookup_discriminator,
+    parse_with_discriminator,
+};
 pub use utils::extract_discriminator_fast;
 pub use zero_copy_parser::parse_pumpfun_trade;
-pub use discriminator_lut::{lookup_discriminator, discriminator_to_name, discriminator_to_protocol, parse_with_discriminator};
 
 // 重新导出主要解析函数
 pub use meteora_amm::parse_log as parse_meteora_amm_log;
 pub use meteora_damm::parse_log as parse_meteora_damm_log;
 pub use meteora_dlmm::parse_log as parse_meteora_dlmm_log;
 pub use orca_whirlpool::parse_log as parse_orca_whirlpool_log;
-pub use pump_amm::parse_log as parse_pump_amm_log;
 pub use pump::parse_log as parse_pumpfun_log;
+pub use pump_amm::parse_log as parse_pump_amm_log;
 pub use raydium_amm::parse_log as parse_raydium_amm_log;
 pub use raydium_clmm::parse_log as parse_raydium_clmm_log;
 pub use raydium_cpmm::parse_log as parse_raydium_cpmm_log;
@@ -47,7 +50,8 @@ use crate::core::events::DexEvent;
 use solana_sdk::signature::Signature;
 
 /// 主日志解析入口函数
-#[inline(always)]  // 零延迟优化：内联热路径
+#[inline(always)] // 零延迟优化：内联热路径
+#[allow(clippy::too_many_arguments)]
 pub fn parse_log(
     log: &str,
     signature: Signature,
@@ -73,7 +77,7 @@ pub fn parse_log(
 }
 
 /// 统一的日志解析入口函数（优化版本）
-#[inline(always)]  // 零延迟优化：内联热路径
+#[inline(always)] // 零延迟优化：内联热路径
 pub fn parse_log_unified(
     log: &str,
     signature: Signature,
@@ -83,7 +87,7 @@ pub fn parse_log_unified(
     let grpc_recv_us = unsafe {
         let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
         libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-        (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+        ts.tv_sec * 1_000_000 + ts.tv_nsec / 1_000
     };
     optimized_matcher::parse_log_optimized(
         log,

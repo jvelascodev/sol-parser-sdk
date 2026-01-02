@@ -1,7 +1,7 @@
 //! 指令解析通用工具函数
 
-use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use crate::core::events::EventMetadata;
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use yellowstone_grpc_proto::prelude::{Transaction, TransactionStatusMeta};
 
 /// 创建事件元数据的通用函数
@@ -12,13 +12,7 @@ pub fn create_metadata(
     block_time_us: i64,
     grpc_recv_us: i64,
 ) -> EventMetadata {
-    EventMetadata {
-        signature,
-        slot,
-        tx_index,
-        block_time_us,
-        grpc_recv_us,
-    }
+    EventMetadata { signature, slot, tx_index, block_time_us, grpc_recv_us }
 }
 
 /// 创建事件元数据的兼容性函数（用于指令解析）
@@ -32,15 +26,12 @@ pub fn create_metadata_simple(
 ) -> EventMetadata {
     // 优化：macOS 使用 CLOCK_REALTIME（Linux 可用 CLOCK_REALTIME_COARSE）
     let current_time = unsafe {
-        let mut ts = libc::timespec {
-            tv_sec: 0,
-            tv_nsec: 0,
-        };
+        let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
         #[cfg(target_os = "linux")]
         libc::clock_gettime(libc::CLOCK_REALTIME_COARSE, &mut ts);
         #[cfg(not(target_os = "linux"))]
         libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-        (ts.tv_sec as i64 * 1_000_000) + (ts.tv_nsec as i64 / 1_000)
+        (ts.tv_sec * 1_000_000) + (ts.tv_nsec / 1_000)
     };
 
     EventMetadata {
@@ -55,22 +46,19 @@ pub fn create_metadata_simple(
 /// 从指令数据中读取 u64（小端序）- SIMD 优化
 #[inline(always)]
 pub fn read_u64_le(data: &[u8], offset: usize) -> Option<u64> {
-    data.get(offset..offset + 8)
-        .map(|slice| u64::from_le_bytes(slice.try_into().unwrap()))
+    data.get(offset..offset + 8).map(|slice| u64::from_le_bytes(slice.try_into().unwrap()))
 }
 
 /// 从指令数据中读取 u32（小端序）- SIMD 优化
 #[inline(always)]
 pub fn read_u32_le(data: &[u8], offset: usize) -> Option<u32> {
-    data.get(offset..offset + 4)
-        .map(|slice| u32::from_le_bytes(slice.try_into().unwrap()))
+    data.get(offset..offset + 4).map(|slice| u32::from_le_bytes(slice.try_into().unwrap()))
 }
 
 /// 从指令数据中读取 u16（小端序）- SIMD 优化
 #[inline(always)]
 pub fn read_u16_le(data: &[u8], offset: usize) -> Option<u16> {
-    data.get(offset..offset + 2)
-        .map(|slice| u16::from_le_bytes(slice.try_into().unwrap()))
+    data.get(offset..offset + 2).map(|slice| u16::from_le_bytes(slice.try_into().unwrap()))
 }
 
 /// 从指令数据中读取 u8
@@ -82,15 +70,13 @@ pub fn read_u8(data: &[u8], offset: usize) -> Option<u8> {
 /// 从指令数据中读取 i32（小端序）- SIMD 优化
 #[inline(always)]
 pub fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
-    data.get(offset..offset + 4)
-        .map(|slice| i32::from_le_bytes(slice.try_into().unwrap()))
+    data.get(offset..offset + 4).map(|slice| i32::from_le_bytes(slice.try_into().unwrap()))
 }
 
 /// 从指令数据中读取 u128（小端序）- SIMD 优化
 #[inline(always)]
 pub fn read_u128_le(data: &[u8], offset: usize) -> Option<u128> {
-    data.get(offset..offset + 16)
-        .map(|slice| u128::from_le_bytes(slice.try_into().unwrap()))
+    data.get(offset..offset + 16).map(|slice| u128::from_le_bytes(slice.try_into().unwrap()))
 }
 
 /// 从指令数据中读取布尔值
@@ -102,8 +88,7 @@ pub fn read_bool(data: &[u8], offset: usize) -> Option<bool> {
 /// 从指令数据中读取公钥 - SIMD 优化
 #[inline(always)]
 pub fn read_pubkey(data: &[u8], offset: usize) -> Option<Pubkey> {
-    data.get(offset..offset + 32)
-        .and_then(|slice| Pubkey::try_from(slice).ok())
+    data.get(offset..offset + 32).and_then(|slice| Pubkey::try_from(slice).ok())
 }
 
 /// 从账户列表中获取账户
@@ -124,7 +109,7 @@ pub fn calculate_slippage_bps(amount_in: u64, amount_out_min: u64) -> u16 {
 }
 
 /// 计算价格影响基点
-pub fn calculate_price_impact_bps(amount_in: u64, amount_out: u64, expected_out: u64) -> u16 {
+pub fn calculate_price_impact_bps(_amount_in: u64, amount_out: u64, expected_out: u64) -> u16 {
     if expected_out == 0 {
         return 0;
     }
@@ -158,7 +143,7 @@ pub fn read_str_unchecked(data: &[u8], offset: usize) -> Option<(&str, usize)> {
 }
 
 /// 从指令数据中读取u64向量（简化版本）
-pub fn read_vec_u64(data: &[u8], _offset: usize) -> Option<Vec<u64>> {
+pub fn read_vec_u64(_data: &[u8], _offset: usize) -> Option<Vec<u64>> {
     // 简化版本：返回默认的两个元素向量
     // 实际实现需要根据具体的数据格式来解析
     Some(vec![0, 0])
@@ -177,8 +162,8 @@ pub fn get_instruction_account_getter<'a>(
     transaction: &'a Option<Transaction>,
     account_keys: Option<&'a Vec<Vec<u8>>>,
     // 地址表
-    loaded_writable_addresses: &'a Vec<Vec<u8>>,
-    loaded_readonly_addresses: &'a Vec<Vec<u8>>,
+    loaded_writable_addresses: &'a [Vec<u8>],
+    loaded_readonly_addresses: &'a [Vec<u8>],
     index: &(i32, i32), // (outer_index, inner_index)
 ) -> Option<impl Fn(usize) -> Pubkey + 'a> {
     // 1. 获取指令的账户索引数组
@@ -260,7 +245,10 @@ impl<'a> InnerInstructionsIndex<'a> {
 
     /// O(1) 查找 inner_instructions
     #[inline]
-    pub fn get(&self, outer_index: u32) -> Option<&'a yellowstone_grpc_proto::prelude::InnerInstructions> {
+    pub fn get(
+        &self,
+        outer_index: u32,
+    ) -> Option<&'a yellowstone_grpc_proto::prelude::InnerInstructions> {
         self.index_map.get(&outer_index).copied()
     }
 }
@@ -270,17 +258,13 @@ pub fn get_instruction_account_getter_indexed<'a>(
     inner_index: &InnerInstructionsIndex<'a>,
     transaction: &'a Option<Transaction>,
     account_keys: Option<&'a Vec<Vec<u8>>>,
-    loaded_writable_addresses: &'a Vec<Vec<u8>>,
-    loaded_readonly_addresses: &'a Vec<Vec<u8>>,
+    loaded_writable_addresses: &'a [Vec<u8>],
+    loaded_readonly_addresses: &'a [Vec<u8>],
     index: &(i32, i32),
 ) -> Option<impl Fn(usize) -> Pubkey + 'a> {
     let accounts = if index.1 >= 0 {
         // O(1) 查找
-        inner_index.get(index.0 as u32)?
-            .instructions
-            .get(index.1 as usize)?
-            .accounts
-            .as_slice()
+        inner_index.get(index.0 as u32)?.instructions.get(index.1 as usize)?.accounts.as_slice()
     } else {
         transaction
             .as_ref()?

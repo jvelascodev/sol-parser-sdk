@@ -63,8 +63,8 @@ pub fn parse_global_config(account: &AccountData, metadata: EventMetadata) -> Op
 
     // 读取 8 个 protocol_fee_recipients
     let mut protocol_fee_recipients = [solana_sdk::pubkey::Pubkey::default(); 8];
-    for i in 0..8 {
-        protocol_fee_recipients[i] = read_pubkey(data, offset)?;
+    for recipient in &mut protocol_fee_recipients {
+        *recipient = read_pubkey(data, offset)?;
         offset += 32;
     }
 
@@ -83,17 +83,15 @@ pub fn parse_global_config(account: &AccountData, metadata: EventMetadata) -> Op
         admin_set_coin_creator_authority,
     };
 
-    Some(DexEvent::PumpSwapGlobalConfigAccount(
-        PumpSwapGlobalConfigAccountEvent {
-            metadata,
-            pubkey: account.pubkey,
-            executable: account.executable,
-            lamports: account.lamports,
-            owner: account.owner,
-            rent_epoch: account.rent_epoch,
-            global_config,
-        },
-    ))
+    Some(DexEvent::PumpSwapGlobalConfigAccount(PumpSwapGlobalConfigAccountEvent {
+        metadata,
+        pubkey: account.pubkey,
+        executable: account.executable,
+        lamports: account.lamports,
+        owner: account.owner,
+        rent_epoch: account.rent_epoch,
+        global_config,
+    }))
 }
 
 /// 解析 PumpSwap Pool 账户

@@ -1,3 +1,4 @@
+#![allow(clippy::missing_safety_doc)]
 //! 通用 Inner Instruction 解析工具
 //!
 //! 提供零拷贝、高性能的通用读取函数，供所有协议的 inner instruction 解析器使用

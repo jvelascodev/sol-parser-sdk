@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use sol_parser_sdk::grpc::{
     AccountFilter, ClientConfig, EventType, EventTypeFilter, Protocol, TransactionFilter,
     YellowstoneGrpc,

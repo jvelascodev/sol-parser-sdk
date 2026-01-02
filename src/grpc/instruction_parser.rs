@@ -7,7 +7,7 @@
 
 use crate::core::{events::*, merger::merge_events};
 use crate::grpc::types::EventTypeFilter;
-use crate::instr::{pump_inner, read_pubkey_fast};
+use crate::instr::read_pubkey_fast;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
 use std::collections::HashMap;
@@ -27,6 +27,7 @@ use yellowstone_grpc_proto::prelude::{Transaction, TransactionStatusMeta};
 /// - 内联优化所有热路径
 /// - 提前过滤不需要的事件
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn parse_instructions_enhanced(
     meta: &TransactionStatusMeta,
     transaction: &Option<Transaction>,
@@ -115,10 +116,8 @@ pub fn parse_instructions_enhanced(
     let merged = merge_instruction_events(result);
 
     // 步骤 3.5: 转换 invokes HashMap 为字符串键（用于 fill_data）
-    let invokes_str: HashMap<&str, Vec<(i32, i32)>> = invokes
-        .iter()
-        .map(|(k, v)| (k.to_string().leak() as &str, v.clone()))
-        .collect();
+    let invokes_str: HashMap<&str, Vec<(i32, i32)>> =
+        invokes.iter().map(|(k, v)| (k.to_string().leak() as &str, v.clone())).collect();
 
     // 步骤 4: 填充账户上下文
     let mut final_result = Vec::with_capacity(merged.len());
@@ -144,6 +143,7 @@ pub fn parse_instructions_enhanced(
 ///
 /// 主指令使用 8 字节 discriminator
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 fn parse_outer_instruction<'a>(
     data: &[u8],
     program_id: &Pubkey,
@@ -169,15 +169,7 @@ fn parse_outer_instruction<'a>(
 
     // 调用现有的 instruction 解析器
     crate::instr::parse_instruction_unified(
-        data,
-        &accounts,
-        sig,
-        slot,
-        tx_idx,
-        block_us,
-        grpc_us,
-        filter,
-        program_id,
+        data, &accounts, sig, slot, tx_idx, block_us, grpc_us, filter, program_id,
     )
 }
 
@@ -185,6 +177,7 @@ fn parse_outer_instruction<'a>(
 ///
 /// Inner instructions 使用 16 字节 discriminator（前8字节是event hash，后8字节是magic）
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 fn parse_inner_instruction(
     data: &[u8],
     program_id: &Pubkey,
@@ -231,7 +224,11 @@ fn parse_inner_instruction(
         }
         pump_amm_inner::parse_pumpswap_inner_instruction(&discriminator, inner_data, metadata)
     } else if *program_id == program_ids::RAYDIUM_CLMM_PROGRAM_ID {
-        raydium_clmm_inner::parse_raydium_clmm_inner_instruction(&discriminator, inner_data, metadata)
+        raydium_clmm_inner::parse_raydium_clmm_inner_instruction(
+            &discriminator,
+            inner_data,
+            metadata,
+        )
     } else if *program_id == program_ids::RAYDIUM_CPMM_PROGRAM_ID {
         all_inner::raydium_cpmm::parse(&discriminator, inner_data, metadata)
     } else if *program_id == program_ids::RAYDIUM_AMM_V4_PROGRAM_ID {
@@ -261,16 +258,14 @@ fn parse_inner_instruction(
 /// 2. Inner instruction 在 outer instruction 之后出现
 /// 3. 合并后返回更完整的事件
 #[inline]
-fn merge_instruction_events(
-    events: Vec<(usize, Option<usize>, DexEvent)>,
-) -> Vec<DexEvent> {
+fn merge_instruction_events(events: Vec<(usize, Option<usize>, DexEvent)>) -> Vec<DexEvent> {
     if events.is_empty() {
         return Vec::new();
     }
 
     // 按 (outer_idx, inner_idx) 排序，确保顺序：outer -> inner
     let mut events = events;
-    events.sort_by_key(|(outer, inner, _)| (*outer, inner.unwrap_or(usize::MAX)));
+    events.sort_by_key(|(outer, inner, _)| (*outer, inner.is_some(), inner.unwrap_or(0)));
 
     let mut result = Vec::with_capacity(events.len());
     let mut pending_outer: Option<(usize, DexEvent)> = None;
@@ -328,8 +323,11 @@ fn should_parse_instructions(filter: Option<&EventTypeFilter>) -> bool {
         use crate::grpc::types::EventType::*;
         matches!(
             t,
-            PumpFunMigrate | MeteoraDammV2Swap | MeteoraDammV2AddLiquidity
-                | MeteoraDammV2CreatePosition | MeteoraDammV2ClosePosition
+            PumpFunMigrate
+                | MeteoraDammV2Swap
+                | MeteoraDammV2AddLiquidity
+                | MeteoraDammV2CreatePosition
+                | MeteoraDammV2ClosePosition
                 | MeteoraDammV2RemoveLiquidity
         )
     })
@@ -391,8 +389,8 @@ mod tests {
         });
 
         let events = vec![
-            (0, None, outer_event),          // outer instruction at index 0
-            (0, Some(0), inner_event),       // inner instruction at index 0
+            (0, None, outer_event),    // outer instruction at index 0
+            (0, Some(0), inner_event), // inner instruction at index 0
         ];
 
         let result = merge_instruction_events(events);

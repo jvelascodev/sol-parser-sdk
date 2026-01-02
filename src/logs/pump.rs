@@ -64,9 +64,8 @@ fn extract_program_data_zero_copy<'a>(log: &'a str, buf: &'a mut [u8; 2048]) -> 
 
     // SIMD-accelerated base64 decoding (AVX2/SSE4/NEON)
     use base64_simd::AsOut;
-    let decoded_slice = base64_simd::STANDARD
-        .decode(trimmed.as_bytes(), buf.as_mut().as_out())
-        .ok()?;
+    let decoded_slice =
+        base64_simd::STANDARD.decode(trimmed.as_bytes(), buf.as_mut().as_out()).ok()?;
 
     Some(decoded_slice)
 }
@@ -87,9 +86,7 @@ fn extract_discriminator_simd(log: &str) -> Option<u64> {
     // 只解码前16字节以获取 discriminator (SIMD-accelerated)
     use base64_simd::AsOut;
     let mut buf = [0u8; 12];
-    base64_simd::STANDARD
-        .decode(&trimmed.as_bytes()[..16], buf.as_mut().as_out())
-        .ok()?;
+    base64_simd::STANDARD.decode(&trimmed.as_bytes()[..16], buf.as_mut().as_out()).ok()?;
 
     // 使用 unsafe 读取 u64 (零拷贝，无边界检查)
     unsafe {
@@ -186,6 +183,7 @@ unsafe fn read_u32_unchecked(data: &[u8], offset: usize) -> u32 {
 ///
 /// 性能目标: <100ns
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub fn parse_log(
     log: &str,
     signature: Signature,
@@ -212,15 +210,32 @@ pub fn parse_log(
     let data = &program_data[8..];
 
     let result = match discriminator {
-        discriminators::CREATE_EVENT => {
-            parse_create_event_optimized(data, signature, slot, tx_index, block_time_us, grpc_recv_us, has_dev_buy)
-        }
-        discriminators::TRADE_EVENT => {
-            parse_trade_event_optimized(data, signature, slot, tx_index, block_time_us, grpc_recv_us, is_created_buy)
-        }
-        discriminators::MIGRATE_EVENT => {
-            parse_migrate_event_optimized(data, signature, slot, tx_index, block_time_us, grpc_recv_us)
-        }
+        discriminators::CREATE_EVENT => parse_create_event_optimized(
+            data,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+            has_dev_buy,
+        ),
+        discriminators::TRADE_EVENT => parse_trade_event_optimized(
+            data,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+            is_created_buy,
+        ),
+        discriminators::MIGRATE_EVENT => parse_migrate_event_optimized(
+            data,
+            signature,
+            slot,
+            tx_index,
+            block_time_us,
+            grpc_recv_us,
+        ),
         _ => None,
     };
 
@@ -303,11 +318,8 @@ fn parse_create_event_optimized(
         };
         offset += 32;
 
-        let is_mayhem_mode = if offset < data.len() {
-            read_bool_unchecked(data, offset)
-        } else {
-            false
-        };
+        let is_mayhem_mode =
+            if offset < data.len() { read_bool_unchecked(data, offset) } else { false };
 
         let metadata = EventMetadata {
             signature,
@@ -414,39 +426,24 @@ fn parse_trade_event_optimized(
         offset += 8;
 
         // 可选字段
-        let track_volume = if offset < data.len() {
-            read_bool_unchecked(data, offset)
-        } else {
-            false
-        };
+        let track_volume =
+            if offset < data.len() { read_bool_unchecked(data, offset) } else { false };
         offset += 1;
 
-        let total_unclaimed_tokens = if offset + 8 <= data.len() {
-            read_u64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let total_unclaimed_tokens =
+            if offset + 8 <= data.len() { read_u64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
-        let total_claimed_tokens = if offset + 8 <= data.len() {
-            read_u64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let total_claimed_tokens =
+            if offset + 8 <= data.len() { read_u64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
-        let current_sol_volume = if offset + 8 <= data.len() {
-            read_u64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let current_sol_volume =
+            if offset + 8 <= data.len() { read_u64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
-        let last_update_timestamp = if offset + 8 <= data.len() {
-            read_i64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let last_update_timestamp =
+            if offset + 8 <= data.len() { read_i64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
         // ix_name: String (4-byte length prefix + content)
@@ -597,16 +594,20 @@ pub fn is_event_type(log: &str, discriminator: u64) -> bool {
 // ============================================================================
 
 /// Parse PumpFun Trade event from pre-decoded data
-/// 
+///
 /// `data` should be the decoded bytes AFTER the 8-byte discriminator
-/// 
+///
 /// Returns different event types based on ix_name:
 /// - "buy" -> DexEvent::PumpFunBuy
 /// - "sell" -> DexEvent::PumpFunSell
 /// - "buy_exact_sol_in" -> DexEvent::PumpFunBuyExactSolIn
 /// - other/empty -> DexEvent::PumpFunTrade (backward compatible)
 #[inline(always)]
-pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+pub fn parse_trade_from_data(
+    data: &[u8],
+    metadata: EventMetadata,
+    is_created_buy: bool,
+) -> Option<DexEvent> {
     unsafe {
         // 快速边界检查
         if data.len() < 32 + 8 + 8 + 1 + 32 + 8 + 8 + 8 + 8 + 8 + 32 + 8 + 8 + 32 + 8 + 8 {
@@ -664,39 +665,24 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
         offset += 8;
 
         // 可选字段
-        let track_volume = if offset < data.len() {
-            read_bool_unchecked(data, offset)
-        } else {
-            false
-        };
+        let track_volume =
+            if offset < data.len() { read_bool_unchecked(data, offset) } else { false };
         offset += 1;
 
-        let total_unclaimed_tokens = if offset + 8 <= data.len() {
-            read_u64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let total_unclaimed_tokens =
+            if offset + 8 <= data.len() { read_u64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
-        let total_claimed_tokens = if offset + 8 <= data.len() {
-            read_u64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let total_claimed_tokens =
+            if offset + 8 <= data.len() { read_u64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
-        let current_sol_volume = if offset + 8 <= data.len() {
-            read_u64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let current_sol_volume =
+            if offset + 8 <= data.len() { read_u64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
-        let last_update_timestamp = if offset + 8 <= data.len() {
-            read_i64_unchecked(data, offset)
-        } else {
-            0
-        };
+        let last_update_timestamp =
+            if offset + 8 <= data.len() { read_i64_unchecked(data, offset) } else { 0 };
         offset += 8;
 
         let ix_name = if offset + 4 <= data.len() {
@@ -751,10 +737,14 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
 }
 
 /// Parse only PumpFun Buy events from pre-decoded data
-/// 
+///
 /// Returns None if the event is not a buy event
 #[inline(always)]
-pub fn parse_buy_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+pub fn parse_buy_from_data(
+    data: &[u8],
+    metadata: EventMetadata,
+    is_created_buy: bool,
+) -> Option<DexEvent> {
     let event = parse_trade_from_data(data, metadata, is_created_buy)?;
     match &event {
         DexEvent::PumpFunBuy(_) => Some(event),
@@ -763,10 +753,14 @@ pub fn parse_buy_from_data(data: &[u8], metadata: EventMetadata, is_created_buy:
 }
 
 /// Parse only PumpFun Sell events from pre-decoded data
-/// 
+///
 /// Returns None if the event is not a sell event
 #[inline(always)]
-pub fn parse_sell_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+pub fn parse_sell_from_data(
+    data: &[u8],
+    metadata: EventMetadata,
+    is_created_buy: bool,
+) -> Option<DexEvent> {
     let event = parse_trade_from_data(data, metadata, is_created_buy)?;
     match &event {
         DexEvent::PumpFunSell(_) => Some(event),
@@ -775,10 +769,14 @@ pub fn parse_sell_from_data(data: &[u8], metadata: EventMetadata, is_created_buy
 }
 
 /// Parse only PumpFun BuyExactSolIn events from pre-decoded data
-/// 
+///
 /// Returns None if the event is not a buy_exact_sol_in event
 #[inline(always)]
-pub fn parse_buy_exact_sol_in_from_data(data: &[u8], metadata: EventMetadata, is_created_buy: bool) -> Option<DexEvent> {
+pub fn parse_buy_exact_sol_in_from_data(
+    data: &[u8],
+    metadata: EventMetadata,
+    is_created_buy: bool,
+) -> Option<DexEvent> {
     let event = parse_trade_from_data(data, metadata, is_created_buy)?;
     match &event {
         DexEvent::PumpFunBuyExactSolIn(_) => Some(event),
@@ -788,7 +786,11 @@ pub fn parse_buy_exact_sol_in_from_data(data: &[u8], metadata: EventMetadata, is
 
 /// Parse PumpFun Create event from pre-decoded data
 #[inline(always)]
-pub fn parse_create_from_data(data: &[u8], metadata: EventMetadata, has_dev_buy: bool) -> Option<DexEvent> {
+pub fn parse_create_from_data(
+    data: &[u8],
+    metadata: EventMetadata,
+    has_dev_buy: bool,
+) -> Option<DexEvent> {
     unsafe {
         let mut offset = 0;
 
@@ -839,11 +841,8 @@ pub fn parse_create_from_data(data: &[u8], metadata: EventMetadata, has_dev_buy:
         };
         offset += 32;
 
-        let is_mayhem_mode = if offset < data.len() {
-            read_bool_unchecked(data, offset)
-        } else {
-            false
-        };
+        let is_mayhem_mode =
+            if offset < data.len() { read_bool_unchecked(data, offset) } else { false };
 
         Some(DexEvent::PumpFunCreate(PumpFunCreateTokenEvent {
             metadata,
@@ -950,7 +949,7 @@ mod tests {
 
         let start = std::time::Instant::now();
         for _ in 0..1000 {
-            let _ = parse_log(log, sig, 0, 0, Some(0), 0, false);
+            let _ = parse_log(log, sig, 0, 0, Some(0), 0, false, false);
         }
         let elapsed = start.elapsed();
 

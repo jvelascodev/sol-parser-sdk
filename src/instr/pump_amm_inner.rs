@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! PumpSwap (Pump AMM) Inner Instruction 解析器
 //!
 //! Inner instructions 使用 16 字节的 discriminator
@@ -30,49 +31,43 @@ use crate::core::events::*;
 use crate::instr::inner_common::*;
 
 #[cfg(feature = "parse-borsh")]
-use borsh::BorshDeserialize;
-
 /// PumpSwap inner instruction discriminators (16 bytes)
-/// Format: [event_magic (8 bytes) | event_discriminator (8 bytes)]
-/// The magic prefix is: [228, 69, 165, 46, 81, 203, 154, 29]
-/// The event_discriminator matches the 8-byte log discriminator for each event type
 pub mod discriminators {
-    /// Common magic prefix for all PumpSwap inner instructions
-    const MAGIC_PREFIX: [u8; 8] = [228, 69, 165, 46, 81, 203, 154, 29];
+    // const MAGIC_PREFIX: [u8; 8] = [228, 69, 165, 46, 81, 203, 154, 29];
 
     /// BuyEvent
     /// Full discriminator: MAGIC_PREFIX + [103, 244, 82, 31, 44, 245, 119, 119]
     pub const BUY: [u8; 16] = [
-        228, 69, 165, 46, 81, 203, 154, 29,  // magic prefix
+        228, 69, 165, 46, 81, 203, 154, 29, // magic prefix
         103, 244, 82, 31, 44, 245, 119, 119, // BuyEvent hash
     ];
 
     /// SellEvent
     /// Full discriminator: MAGIC_PREFIX + [62, 47, 55, 10, 165, 3, 220, 42]
     pub const SELL: [u8; 16] = [
-        228, 69, 165, 46, 81, 203, 154, 29,  // magic prefix
-        62, 47, 55, 10, 165, 3, 220, 42,     // SellEvent hash
+        228, 69, 165, 46, 81, 203, 154, 29, // magic prefix
+        62, 47, 55, 10, 165, 3, 220, 42, // SellEvent hash
     ];
 
     /// CreatePoolEvent
     /// Full discriminator: MAGIC_PREFIX + [177, 49, 12, 210, 160, 118, 167, 116]
     pub const CREATE_POOL: [u8; 16] = [
-        228, 69, 165, 46, 81, 203, 154, 29,  // magic prefix
+        228, 69, 165, 46, 81, 203, 154, 29, // magic prefix
         177, 49, 12, 210, 160, 118, 167, 116, // CreatePoolEvent hash
     ];
 
     /// DepositEvent (Add Liquidity)
     /// Full discriminator: MAGIC_PREFIX + [120, 248, 61, 83, 31, 142, 107, 144]
     pub const ADD_LIQUIDITY: [u8; 16] = [
-        228, 69, 165, 46, 81, 203, 154, 29,  // magic prefix
+        228, 69, 165, 46, 81, 203, 154, 29, // magic prefix
         120, 248, 61, 83, 31, 142, 107, 144, // AddLiquidityEvent hash
     ];
 
     /// WithdrawEvent (Remove Liquidity)
     /// Full discriminator: MAGIC_PREFIX + [22, 9, 133, 26, 160, 44, 71, 192]
     pub const REMOVE_LIQUIDITY: [u8; 16] = [
-        228, 69, 165, 46, 81, 203, 154, 29,  // magic prefix
-        22, 9, 133, 26, 160, 44, 71, 192,    // RemoveLiquidityEvent hash
+        228, 69, 165, 46, 81, 203, 154, 29, // magic prefix
+        22, 9, 133, 26, 160, 44, 71, 192, // RemoveLiquidityEvent hash
     ];
 }
 
@@ -83,12 +78,12 @@ pub fn parse_pumpswap_inner_instruction(
     data: &[u8],
     metadata: EventMetadata,
 ) -> Option<DexEvent> {
-    match discriminator {
-        &discriminators::BUY => parse_buy_inner(data, metadata),
-        &discriminators::SELL => parse_sell_inner(data, metadata),
-        &discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
-        &discriminators::ADD_LIQUIDITY => parse_add_liquidity_inner(data, metadata),
-        &discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity_inner(data, metadata),
+    match *discriminator {
+        discriminators::BUY => parse_buy_inner(data, metadata),
+        discriminators::SELL => parse_sell_inner(data, metadata),
+        discriminators::CREATE_POOL => parse_create_pool_inner(data, metadata),
+        discriminators::ADD_LIQUIDITY => parse_add_liquidity_inner(data, metadata),
+        discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity_inner(data, metadata),
         _ => None,
     }
 }
@@ -103,14 +98,13 @@ pub fn parse_pumpswap_inner_instruction(
 #[inline(always)]
 fn parse_buy_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_buy_inner_borsh(data, metadata)
-    }
+    return parse_buy_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_buy_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_buy_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - Buy 事件
@@ -130,10 +124,7 @@ fn parse_buy_inner_borsh(data: &[u8], metadata: EventMetadata) -> Option<DexEven
     let event = borsh::from_slice::<PumpSwapBuyEvent>(&data[..BUY_EVENT_SIZE]).ok()?;
 
     // 设置 metadata
-    Some(DexEvent::PumpSwapBuy(PumpSwapBuyEvent {
-        metadata,
-        ..event
-    }))
+    Some(DexEvent::PumpSwapBuy(PumpSwapBuyEvent { metadata, ..event }))
 }
 
 /// 零拷贝解析器 - Buy 事件
@@ -287,14 +278,13 @@ fn parse_buy_inner_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<Dex
 #[inline(always)]
 fn parse_sell_inner(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     #[cfg(feature = "parse-borsh")]
-    {
-        parse_sell_inner_borsh(data, metadata)
-    }
+    return parse_sell_inner_borsh(data, metadata);
 
-    #[cfg(feature = "parse-zero-copy")]
-    {
-        parse_sell_inner_zero_copy(data, metadata)
-    }
+    #[cfg(all(not(feature = "parse-borsh"), feature = "parse-zero-copy"))]
+    return parse_sell_inner_zero_copy(data, metadata);
+
+    #[cfg(all(not(feature = "parse-borsh"), not(feature = "parse-zero-copy")))]
+    None
 }
 
 /// Borsh 反序列化解析器 - Sell 事件
@@ -316,7 +306,7 @@ fn parse_sell_inner_borsh(data: &[u8], metadata: EventMetadata) -> Option<DexEve
     // 设置 metadata 并设置 is_pump_pool 标志
     Some(DexEvent::PumpSwapSell(PumpSwapSellEvent {
         metadata,
-        is_pump_pool: true,  // 标记为 PumpSwap pool
+        is_pump_pool: true, // 标记为 PumpSwap pool
         ..event
     }))
 }
@@ -484,9 +474,9 @@ fn parse_add_liquidity_inner(data: &[u8], metadata: EventMetadata) -> Option<Dex
         }
 
         let mut offset = 0;
-        let pool = read_pubkey_unchecked(data, offset);
+        let _pool = read_pubkey_unchecked(data, offset);
         offset += 32;
-        let user = read_pubkey_unchecked(data, offset);
+        let _user = read_pubkey_unchecked(data, offset);
         offset += 32;
         let base_amount = read_u64_unchecked(data, offset);
         offset += 8;
@@ -513,9 +503,9 @@ fn parse_remove_liquidity_inner(data: &[u8], metadata: EventMetadata) -> Option<
         }
 
         let mut offset = 0;
-        let pool = read_pubkey_unchecked(data, offset);
+        let _pool = read_pubkey_unchecked(data, offset);
         offset += 32;
-        let user = read_pubkey_unchecked(data, offset);
+        let _user = read_pubkey_unchecked(data, offset);
         offset += 32;
         let lp_amount = read_u64_unchecked(data, offset);
         offset += 8;
