@@ -1,0 +1,29 @@
+{
+  "base_amount_in": 20190000000,
+  "base_mint": "So11111111111111111111111111111111111111112",
+  "base_mint_decimals": 9,
+  "coin_creator": "259nrwzz9wBXJ62evJVjojndwru6vREcFPioG4hVWmGF",
+  "creator": "259nrwzz9wBXJ62evJVjojndwru6vREcFPioG4hVWmGF",
+  "index": 0,
+  "initial_liquidity": 1004738772019,
+  "lp_mint": "7jojJ7upC2dqVsxw5XbXrm5r5eV7M8sNpzRqNotZ9KDc",
+  "lp_token_amount_out": 1004738771919,
+  "metadata": {
+    "block_time_us": 1767467907744220,
+    "grpc_recv_us": 1767467907835742,
+    "signature": "6321cXfe4reniUEZDwud1kjBPCBZXMBoVHranLmTJa7hRoZ9wCvf8T8jx1xVts6SmeWbXvercyBvNq9D2SvVsBUS",
+    "slot": 391106900,
+    "tx_index": 705
+  },
+  "minimum_liquidity": 100,
+  "pool": "BJwn1peniBhKfMBFHEfmeEkr8BPz1eC8oV5MVYtFjQ7p",
+  "pool_base_amount": 20190000000,
+  "pool_bump": 255,
+  "pool_quote_amount": 50000000000000,
+  "quote_amount_in": 50000000000000,
+  "quote_mint": "GUbf5ASxTk6q5uGGBWh9HvirjNvUkZwF5A4VXBSAU2Ts",
+  "quote_mint_decimals": 6,
+  "timestamp": 1767467907,
+  "user_base_token_account": "7JBJznKqp5QXaVmPaJt3GXrG393tbGAKGRyAhrLcpb4k",
+  "user_quote_token_account": "5otMwqSftwyBgoXwzC2FQQNLkKCSpEQ4XY61sFsiC4Vu"
+}
