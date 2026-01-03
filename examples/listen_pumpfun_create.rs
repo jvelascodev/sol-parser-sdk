@@ -100,9 +100,9 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                     }
 
                     let json_data = serde_json::to_string_pretty(&value)?;
-                    let mut file = File::create("pumpfun_create_event.json")?;
+                    let mut file = File::create("examples/events/pumpfun_create_event.json")?;
                     file.write_all(json_data.as_bytes())?;
-                    println!("💾 Saved the first event to 'pumpfun_create_event.json' (Base58 encoded specific fields)");
+                    println!("💾 Saved the first event to 'examples/events/pumpfun_create_event.json' (Base58 encoded specific fields)");
                     saved = true;
 
                     println!("🛑 Task complete. Exiting...");

@@ -1,0 +1,24 @@
+{
+  "bonding_curve": "97EPNFyYicpPX7Xrq6z3rcyz8mTGcawZoExZx3hWAVsm",
+  "creator": "7FsGU3jkDqPq6rvXcFwZBzS735vHhowzE1YXNh299dmN",
+  "has_dev_buy": false,
+  "is_mayhem_mode": false,
+  "metadata": {
+    "block_time_us": 1767467175690045,
+    "grpc_recv_us": 1767467175794409,
+    "signature": "4fSEXjfJXJjJyYXQJeZuZUCQLtS5mJwKLUUFSa8cjr4XDNeYwptAZokkghdpjqhvaUMtLnUu9ggizqJJytVF6SCT",
+    "slot": 391105066,
+    "tx_index": 1161
+  },
+  "mint": "CNjyFw4UfnwmYC93MWMjTvyXp2F9kABp6ybZXv2kpump",
+  "name": "Venezuela Pepe",
+  "real_token_reserves": 793100000000000,
+  "symbol": "VENEPEPE",
+  "timestamp": 1767467174,
+  "token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+  "token_total_supply": 1000000000000000,
+  "uri": "https://ipfs.io/ipfs/bafkreiht3vynvg3e3ppjjfrcqte7nmig7vglw76e3rurlyieaajuyvs424",
+  "user": "7FsGU3jkDqPq6rvXcFwZBzS735vHhowzE1YXNh299dmN",
+  "virtual_sol_reserves": 30000000000,
+  "virtual_token_reserves": 1073000000000000
+}
