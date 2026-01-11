@@ -114,6 +114,8 @@ pub struct PumpFunTradeEvent {
     pub last_update_timestamp: i64,
     /// Instruction name: "buy" | "sell" | "buy_exact_sol_in"
     pub ix_name: String,
+    /// Mayhem mode flag (new field from IDL update)
+    pub mayhem_mode: bool,
 
     // === Instruction parameter fields (reserved for future use, DO NOT delete) ===
     // pub amount: u64,                     // buy/sell.args.amount
@@ -251,6 +253,10 @@ pub struct PumpSwapBuyEvent {
     pub total_claimed_tokens: u64,
     pub current_sol_volume: u64,
     pub last_update_timestamp: i64,
+    /// Minimum base token amount expected (new field from IDL update)
+    pub min_base_amount_out: u64,
+    /// Instruction name (new field from IDL update)
+    pub ix_name: String,
 
     // === 额外的信息 ===
     #[borsh(skip)]

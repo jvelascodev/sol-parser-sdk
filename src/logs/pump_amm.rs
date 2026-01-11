@@ -252,9 +252,10 @@ fn parse_buy_event_optimized(
     block_time_us: Option<i64>,
     grpc_recv_us: i64,
 ) -> Option<DexEvent> {
-    // 一次性边界检查 (14个u64 + 7个Pubkey + 1个bool)
-    const REQUIRED_LEN: usize = 14 * 8 + 7 * 32 + 1;
-    if data.len() < REQUIRED_LEN {
+    // Updated size check for new fields: min_base_amount_out (u64) + ix_name (String, variable length)
+    // Minimum size: 14个u64 + 7个Pubkey + 1个bool + 5个u64 (new fields) + 4 bytes (min string length)
+    const MIN_REQUIRED_LEN: usize = 14 * 8 + 7 * 32 + 1 + 5 * 8 + 4;
+    if data.len() < MIN_REQUIRED_LEN {
         return None;
     }
 
@@ -289,6 +290,26 @@ fn parse_buy_event_optimized(
         let total_claimed_tokens = read_u64_unchecked(data, 361);
         let current_sol_volume = read_u64_unchecked(data, 369);
         let last_update_timestamp = read_i64_unchecked(data, 377);
+
+        // New fields from IDL update
+        let mut offset = 385;
+        let min_base_amount_out = read_u64_unchecked(data, offset);
+        offset += 8;
+
+        // ix_name: String (4-byte length prefix + content)
+        let ix_name = if offset + 4 <= data.len() {
+            let len = read_u32_unchecked(data, offset) as usize;
+            offset += 4;
+            if offset + len <= data.len() {
+                let string_bytes = &data[offset..offset + len];
+                let s = std::str::from_utf8_unchecked(string_bytes);
+                s.to_string()
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
 
         let metadata = EventMetadata {
             signature,
@@ -328,6 +349,8 @@ fn parse_buy_event_optimized(
             total_claimed_tokens,
             current_sol_volume,
             last_update_timestamp,
+            min_base_amount_out,
+            ix_name,
             ..Default::default()
         }))
     }
@@ -645,8 +668,9 @@ pub fn is_event_type(log: &str, discriminator: u64) -> bool {
 /// Parse PumpSwap Buy event from pre-decoded data
 #[inline(always)]
 pub fn parse_buy_from_data(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
-    const REQUIRED_LEN: usize = 14 * 8 + 7 * 32 + 1 + 5 * 8;
-    if data.len() < REQUIRED_LEN {
+    // Updated size check for new fields
+    const MIN_REQUIRED_LEN: usize = 14 * 8 + 7 * 32 + 1 + 5 * 8 + 4;
+    if data.len() < MIN_REQUIRED_LEN {
         return None;
     }
 
@@ -682,6 +706,26 @@ pub fn parse_buy_from_data(data: &[u8], metadata: EventMetadata) -> Option<DexEv
         let current_sol_volume = read_u64_unchecked(data, 369);
         let last_update_timestamp = read_i64_unchecked(data, 377);
 
+        // New fields from IDL update
+        let mut offset = 385;
+        let min_base_amount_out = read_u64_unchecked(data, offset);
+        offset += 8;
+
+        // ix_name: String (4-byte length prefix + content)
+        let ix_name = if offset + 4 <= data.len() {
+            let len = read_u32_unchecked(data, offset) as usize;
+            offset += 4;
+            if offset + len <= data.len() {
+                let string_bytes = &data[offset..offset + len];
+                let s = std::str::from_utf8_unchecked(string_bytes);
+                s.to_string()
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
         Some(DexEvent::PumpSwapBuy(PumpSwapBuyEvent {
             metadata,
             timestamp,
@@ -712,6 +756,8 @@ pub fn parse_buy_from_data(data: &[u8], metadata: EventMetadata) -> Option<DexEv
             total_claimed_tokens,
             current_sol_volume,
             last_update_timestamp,
+            min_base_amount_out,
+            ix_name,
             ..Default::default()
         }))
     }

@@ -449,13 +449,21 @@ fn parse_trade_event_optimized(
         // ix_name: String (4-byte length prefix + content)
         // Values: "buy" | "sell" | "buy_exact_sol_in"
         let ix_name = if offset + 4 <= data.len() {
-            if let Some((s, _)) = read_str_unchecked(data, offset) {
+            if let Some((s, len)) = read_str_unchecked(data, offset) {
+                offset += len;
                 s.to_string()
             } else {
                 String::new()
             }
         } else {
             String::new()
+        };
+
+        // mayhem_mode: bool (1 byte, new field from IDL update)
+        let mayhem_mode = if offset < data.len() {
+            read_bool_unchecked(data, offset)
+        } else {
+            false
         };
 
         let metadata = EventMetadata {
@@ -491,6 +499,7 @@ fn parse_trade_event_optimized(
             current_sol_volume,
             last_update_timestamp,
             ix_name: ix_name.clone(),
+            mayhem_mode,
             bonding_curve: Pubkey::default(),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: Pubkey::default(),
@@ -697,13 +706,21 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
         offset += 8;
 
         let ix_name = if offset + 4 <= data.len() {
-            if let Some((s, _)) = read_str_unchecked(data, offset) {
+            if let Some((s, len)) = read_str_unchecked(data, offset) {
+                offset += len;
                 s.to_string()
             } else {
                 String::new()
             }
         } else {
             String::new()
+        };
+
+        // mayhem_mode: bool (1 byte, new field from IDL update)
+        let mayhem_mode = if offset < data.len() {
+            read_bool_unchecked(data, offset)
+        } else {
+            false
         };
 
         let trade_event = PumpFunTradeEvent {
@@ -731,6 +748,7 @@ pub fn parse_trade_from_data(data: &[u8], metadata: EventMetadata, is_created_bu
             current_sol_volume,
             last_update_timestamp,
             ix_name: ix_name.clone(),
+            mayhem_mode,
             bonding_curve: Pubkey::default(),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: Pubkey::default(),
