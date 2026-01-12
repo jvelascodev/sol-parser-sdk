@@ -114,6 +114,8 @@ cargo run --example pumpswap_ordered --release
 | `pumpfun_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn）- 无序模式 | `cargo run --example pumpfun_trade_filter --release` |
 | `pumpfun_trade_filter_ordered` | PumpFun 交易过滤 + StreamingOrdered 有序模式 | `cargo run --example pumpfun_trade_filter_ordered --release` |
 | `pumpfun_quick_test` | PumpFun 快速连接测试（接收前 10 个事件） | `cargo run --example pumpfun_quick_test --release` |
+| `parse_pump_tx` | 从 RPC 解析特定 PumpFun 交易 | `cargo run --example parse_pump_tx --release` |
+| `debug_pump_tx` | 调试 PumpFun 交易解析 | `cargo run --example debug_pump_tx --release` |
 | **PumpSwap 示例** |
 | `pumpswap_low_latency` | PumpSwap 超低延迟测试（无序，完整事件数据） | `cargo run --example pumpswap_low_latency --release` |
 | `pumpswap_ordered` | PumpSwap 买入/卖出/创建池 + MicroBatch 有序模式 | `cargo run --example pumpswap_ordered --release` |

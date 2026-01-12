@@ -91,8 +91,8 @@ pub fn parse_rpc_transaction(
         .unwrap()
         .as_micros() as i64;
 
-    // Parse using sol-parser-sdk core
-    let events = parse_instructions_enhanced(
+    // Parse instructions
+    let mut events = parse_instructions_enhanced(
         &grpc_meta,
         &Some(grpc_tx),
         signature,
@@ -102,6 +102,27 @@ pub fn parse_rpc_transaction(
         grpc_recv_us,
         filter,
     );
+
+    // Parse logs (for protocols like PumpFun that emit events in logs)
+    let mut is_created_buy = false;
+    for log in &grpc_meta.log_messages {
+        if let Some(event) = crate::logs::parse_log(
+            log,
+            signature,
+            slot,
+            0, // tx_index
+            block_time_us,
+            grpc_recv_us,
+            filter,
+            is_created_buy,
+        ) {
+            // Check if this is a PumpFun create event to set is_created_buy flag
+            if matches!(event, DexEvent::PumpFunCreate(_)) {
+                is_created_buy = true;
+            }
+            events.push(event);
+        }
+    }
 
     Ok(events)
 }

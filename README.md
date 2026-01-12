@@ -114,6 +114,8 @@ cargo run --example pumpswap_ordered --release
 | `pumpfun_trade_filter` | PumpFun trade type filtering (Buy/Sell/BuyExactSolIn) - Unordered | `cargo run --example pumpfun_trade_filter --release` |
 | `pumpfun_trade_filter_ordered` | PumpFun trade filtering with StreamingOrdered mode | `cargo run --example pumpfun_trade_filter_ordered --release` |
 | `pumpfun_quick_test` | Quick PumpFun connection test (receives first 10 events) | `cargo run --example pumpfun_quick_test --release` |
+| `parse_pump_tx` | Parse specific PumpFun transaction from RPC | `cargo run --example parse_pump_tx --release` |
+| `debug_pump_tx` | Debug PumpFun transaction parsing | `cargo run --example debug_pump_tx --release` |
 | **PumpSwap Examples** |
 | `pumpswap_low_latency` | PumpSwap ultra-low latency testing (Unordered, full event data) | `cargo run --example pumpswap_low_latency --release` |
 | `pumpswap_ordered` | PumpSwap Buy/Sell/CreatePool with MicroBatch ordering | `cargo run --example pumpswap_ordered --release` |
