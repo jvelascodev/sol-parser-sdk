@@ -6,6 +6,7 @@
 use crate::core::events::DexEvent;
 use crate::grpc::instruction_parser::parse_instructions_enhanced;
 use crate::grpc::types::EventTypeFilter;
+use crate::instr::read_pubkey_fast;
 use base64::{Engine as _, engine::general_purpose};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
@@ -14,6 +15,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{
     EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction, UiTransactionEncoding,
 };
+use std::collections::HashMap;
 use yellowstone_grpc_proto::prelude::{
     CompiledInstruction, InnerInstruction, InnerInstructions, Message, MessageAddressTableLookup, MessageHeader,
     Transaction, TransactionStatusMeta,
@@ -91,10 +93,50 @@ pub fn parse_rpc_transaction(
         .unwrap()
         .as_micros() as i64;
 
+    // Wrap grpc_tx in Option for reuse
+    let grpc_tx_opt = Some(grpc_tx);
+
+    // Build program_invokes HashMap for account filling
+    let mut program_invokes: HashMap<Pubkey, Vec<(i32, i32)>> = HashMap::new();
+
+    if let Some(ref tx) = grpc_tx_opt {
+        if let Some(ref msg) = tx.message {
+            // Build account key lookup
+            let keys_len = msg.account_keys.len();
+            let writable_len = grpc_meta.loaded_writable_addresses.len();
+            let get_key = |i: usize| -> Option<&Vec<u8>> {
+                if i < keys_len {
+                    msg.account_keys.get(i)
+                } else if i < keys_len + writable_len {
+                    grpc_meta.loaded_writable_addresses.get(i - keys_len)
+                } else {
+                    grpc_meta.loaded_readonly_addresses.get(i - keys_len - writable_len)
+                }
+            };
+
+            // Record outer instructions
+            for (i, ix) in msg.instructions.iter().enumerate() {
+                let pid = get_key(ix.program_id_index as usize)
+                    .map_or(Pubkey::default(), |k| read_pubkey_fast(k));
+                program_invokes.entry(pid).or_default().push((i as i32, -1));
+            }
+
+            // Record inner instructions
+            for inner in &grpc_meta.inner_instructions {
+                let outer_idx = inner.index as usize;
+                for (j, inner_ix) in inner.instructions.iter().enumerate() {
+                    let pid = get_key(inner_ix.program_id_index as usize)
+                        .map_or(Pubkey::default(), |k| read_pubkey_fast(k));
+                    program_invokes.entry(pid).or_default().push((outer_idx as i32, j as i32));
+                }
+            }
+        }
+    }
+
     // Parse instructions
     let mut events = parse_instructions_enhanced(
         &grpc_meta,
-        &Some(grpc_tx),
+        &grpc_tx_opt,
         signature,
         slot,
         0, // tx_idx
@@ -106,7 +148,7 @@ pub fn parse_rpc_transaction(
     // Parse logs (for protocols like PumpFun that emit events in logs)
     let mut is_created_buy = false;
     for log in &grpc_meta.log_messages {
-        if let Some(event) = crate::logs::parse_log(
+        if let Some(mut event) = crate::logs::parse_log(
             log,
             signature,
             slot,
@@ -120,6 +162,15 @@ pub fn parse_rpc_transaction(
             if matches!(event, DexEvent::PumpFunCreate(_)) {
                 is_created_buy = true;
             }
+
+            // Fill account fields using account_dispatcher
+            crate::core::account_dispatcher::fill_accounts_with_owned_keys(
+                &mut event,
+                &grpc_meta,
+                &grpc_tx_opt,
+                &program_invokes,
+            );
+
             events.push(event);
         }
     }
