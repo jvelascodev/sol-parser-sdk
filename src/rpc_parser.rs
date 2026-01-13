@@ -97,7 +97,8 @@ pub fn parse_rpc_transaction(
     let grpc_tx_opt = Some(grpc_tx);
 
     // Build program_invokes HashMap for account filling
-    let mut program_invokes: HashMap<Pubkey, Vec<(i32, i32)>> = HashMap::new();
+    // Use string keys to match gRPC parsing logic
+    let mut program_invokes: HashMap<&str, Vec<(i32, i32)>> = HashMap::new();
 
     if let Some(ref tx) = grpc_tx_opt {
         if let Some(ref msg) = tx.message {
@@ -118,7 +119,9 @@ pub fn parse_rpc_transaction(
             for (i, ix) in msg.instructions.iter().enumerate() {
                 let pid = get_key(ix.program_id_index as usize)
                     .map_or(Pubkey::default(), |k| read_pubkey_fast(k));
-                program_invokes.entry(pid).or_default().push((i as i32, -1));
+                let pid_str = pid.to_string();
+                let pid_static: &'static str = pid_str.leak();
+                program_invokes.entry(pid_static).or_default().push((i as i32, -1));
             }
 
             // Record inner instructions
@@ -127,7 +130,9 @@ pub fn parse_rpc_transaction(
                 for (j, inner_ix) in inner.instructions.iter().enumerate() {
                     let pid = get_key(inner_ix.program_id_index as usize)
                         .map_or(Pubkey::default(), |k| read_pubkey_fast(k));
-                    program_invokes.entry(pid).or_default().push((outer_idx as i32, j as i32));
+                    let pid_str = pid.to_string();
+                    let pid_static: &'static str = pid_str.leak();
+                    program_invokes.entry(pid_static).or_default().push((outer_idx as i32, j as i32));
                 }
             }
         }
@@ -147,6 +152,7 @@ pub fn parse_rpc_transaction(
 
     // Parse logs (for protocols like PumpFun that emit events in logs)
     let mut is_created_buy = false;
+
     for log in &grpc_meta.log_messages {
         if let Some(mut event) = crate::logs::parse_log(
             log,
@@ -163,8 +169,16 @@ pub fn parse_rpc_transaction(
                 is_created_buy = true;
             }
 
-            // Fill account fields using account_dispatcher
-            crate::core::account_dispatcher::fill_accounts_with_owned_keys(
+            // Fill account fields - use same function as gRPC parsing
+            crate::core::account_dispatcher::fill_accounts_from_transaction_data(
+                &mut event,
+                &grpc_meta,
+                &grpc_tx_opt,
+                &program_invokes,
+            );
+
+            // Fill additional data fields (e.g., PumpSwap is_pump_pool)
+            crate::core::common_filler::fill_data(
                 &mut event,
                 &grpc_meta,
                 &grpc_tx_opt,
