@@ -9,6 +9,7 @@ use sol_parser_sdk::grpc::{
     AccountFilter, ClientConfig, EventType, EventTypeFilter, OrderMode, Protocol,
     TransactionFilter, YellowstoneGrpc,
 };
+use sol_parser_sdk::core::now_micros;
 use sol_parser_sdk::DexEvent;
 
 #[tokio::main]
@@ -86,12 +87,8 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                 spin_count = 0;
                 event_count += 1;
 
-                // 获取当前时间（微秒）
-                let now_us = unsafe {
-                    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-                    libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-                    (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
-                };
+                // 获取当前时间（微秒）- 使用与事件相同的时钟源
+                let now_us = now_micros();
 
                 match &event {
                     DexEvent::PumpSwapBuy(e) => {
