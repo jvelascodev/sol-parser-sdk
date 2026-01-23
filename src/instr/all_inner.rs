@@ -756,6 +756,7 @@ pub mod meteora_damm {
 
     pub mod discriminators {
         pub const SWAP: [u8; 16] = [27, 60, 21, 213, 138, 170, 187, 147, 155, 167, 108, 32, 122, 76, 173, 64];
+        pub const SWAP2: [u8; 16] = [189, 66, 51, 168, 38, 80, 117, 153, 155, 167, 108, 32, 122, 76, 173, 64];
         pub const ADD_LIQUIDITY: [u8; 16] = [175, 242, 8, 157, 30, 247, 185, 169, 155, 167, 108, 32, 122, 76, 173, 64];
         pub const REMOVE_LIQUIDITY: [u8; 16] = [87, 46, 88, 98, 175, 96, 34, 91, 155, 167, 108, 32, 122, 76, 173, 64];
         pub const CREATE_POSITION: [u8; 16] = [156, 15, 119, 198, 29, 181, 221, 55, 155, 167, 108, 32, 122, 76, 173, 64];
@@ -767,6 +768,7 @@ pub mod meteora_damm {
     pub fn parse(disc: &[u8; 16], data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
         match disc {
             &discriminators::SWAP => parse_swap(data, metadata),
+            &discriminators::SWAP2 => parse_swap2(data, metadata),
             &discriminators::ADD_LIQUIDITY => parse_add_liquidity(data, metadata),
             &discriminators::REMOVE_LIQUIDITY => parse_remove_liquidity(data, metadata),
             &discriminators::CREATE_POSITION => parse_create_position(data, metadata),
@@ -812,6 +814,176 @@ pub mod meteora_damm {
             let output_amount = read_u64_unchecked(data, 40);
             Some(DexEvent::MeteoraDammV2Swap(MeteoraDammV2SwapEvent {
                 metadata, pool, amount_in, output_amount, ..Default::default()
+            }))
+        }
+    }
+
+    // ============================================================================
+    // Swap2 Event
+    // ============================================================================
+
+    /// 解析 Swap2 事件（统一入口）
+    #[inline(always)]
+    fn parse_swap2(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+        #[cfg(feature = "parse-borsh")]
+        { parse_swap2_borsh(data, metadata) }
+
+        #[cfg(feature = "parse-zero-copy")]
+        { parse_swap2_zero_copy(data, metadata) }
+    }
+
+    /// Borsh 解析器 for Swap2
+    #[cfg(feature = "parse-borsh")]
+    #[inline(always)]
+    fn parse_swap2_borsh(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+        // Swap2 事件结构：
+        // pool(32) + config(32) + trade_direction(1) + has_referral(1) +
+        // amount_0(8) + amount_1(8) + swap_mode(1) +
+        // included_fee_input_amount(8) + excluded_fee_input_amount(8) + amount_left(8) +
+        // output_amount(8) + next_sqrt_price(16) +
+        // trading_fee(8) + protocol_fee(8) + referral_fee(8) +
+        // quote_reserve_amount(8) + migration_threshold(8) + current_timestamp(8)
+        // = 32 + 32 + 1 + 1 + 8 + 8 + 1 + 8 + 8 + 8 + 8 + 16 + 8 + 8 + 8 + 8 + 8 + 8 = 177 bytes
+        const SWAP2_EVENT_MIN_SIZE: usize = 177;
+        if data.len() < SWAP2_EVENT_MIN_SIZE { return None; }
+
+        let mut offset = 0;
+
+        // 使用 unsafe 读取以提高性能
+        unsafe {
+            let pool = read_pubkey_unchecked(data, offset);
+            offset += 32;
+
+            let _config = read_pubkey_unchecked(data, offset);
+            offset += 32;
+
+            let trade_direction = read_u8_unchecked(data, offset);
+            offset += 1;
+
+            let has_referral = read_bool_unchecked(data, offset);
+            offset += 1;
+
+            let amount_0 = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let amount_1 = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let swap_mode = read_u8_unchecked(data, offset);
+            offset += 1;
+
+            let included_fee_input_amount = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let _excluded_fee_input_amount = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let _amount_left = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let output_amount = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let next_sqrt_price = read_u128_unchecked(data, offset);
+            offset += 16;
+
+            let lp_fee = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let protocol_fee = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let referral_fee = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let _quote_reserve_amount = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let _migration_threshold = read_u64_unchecked(data, offset);
+            offset += 8;
+
+            let current_timestamp = read_u64_unchecked(data, offset);
+
+            // 根据 swap_mode 确定 amount_in 和 minimum_amount_out
+            let (amount_in, minimum_amount_out) = if swap_mode == 0 {
+                (amount_0, amount_1)
+            } else {
+                (amount_1, amount_0)
+            };
+
+            Some(DexEvent::MeteoraDammV2Swap(MeteoraDammV2SwapEvent {
+                metadata,
+                pool,
+                trade_direction,
+                has_referral,
+                amount_in,
+                minimum_amount_out,
+                output_amount,
+                next_sqrt_price,
+                lp_fee,
+                protocol_fee,
+                partner_fee: 0,
+                referral_fee,
+                actual_amount_in: included_fee_input_amount,
+                current_timestamp,
+                ..Default::default()
+            }))
+        }
+    }
+
+    /// 零拷贝解析器 for Swap2
+    #[cfg(feature = "parse-zero-copy")]
+    #[inline(always)]
+    fn parse_swap2_zero_copy(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
+        // Swap2 事件结构：
+        // pool(32) + config(32) + trade_direction(1) + has_referral(1) +
+        // amount_0(8) + amount_1(8) + swap_mode(1) +
+        // included_fee_input_amount(8) + excluded_fee_input_amount(8) + amount_left(8) +
+        // output_amount(8) + next_sqrt_price(16) +
+        // trading_fee(8) + protocol_fee(8) + referral_fee(8) +
+        // quote_reserve_amount(8) + migration_threshold(8) + current_timestamp(8)
+        const SWAP2_EVENT_MIN_SIZE: usize = 177;
+
+        unsafe {
+            if !check_length(data, SWAP2_EVENT_MIN_SIZE) { return None; }
+
+            let pool = read_pubkey_unchecked(data, 0);
+            let trade_direction = read_u8_unchecked(data, 64);
+            let has_referral = read_bool_unchecked(data, 65);
+            let amount_0 = read_u64_unchecked(data, 66);
+            let amount_1 = read_u64_unchecked(data, 74);
+            let swap_mode = read_u8_unchecked(data, 82);
+            let included_fee_input_amount = read_u64_unchecked(data, 83);
+            let output_amount = read_u64_unchecked(data, 107);
+            let next_sqrt_price = read_u128_unchecked(data, 115);
+            let lp_fee = read_u64_unchecked(data, 131);
+            let protocol_fee = read_u64_unchecked(data, 139);
+            let referral_fee = read_u64_unchecked(data, 147);
+            let current_timestamp = read_u64_unchecked(data, 169);
+
+            // 根据 swap_mode 确定 amount_in 和 minimum_amount_out
+            let (amount_in, minimum_amount_out) = if swap_mode == 0 {
+                (amount_0, amount_1)
+            } else {
+                (amount_1, amount_0)
+            };
+
+            Some(DexEvent::MeteoraDammV2Swap(MeteoraDammV2SwapEvent {
+                metadata,
+                pool,
+                trade_direction,
+                has_referral,
+                amount_in,
+                minimum_amount_out,
+                output_amount,
+                next_sqrt_price,
+                lp_fee,
+                protocol_fee,
+                partner_fee: 0,
+                referral_fee,
+                actual_amount_in: included_fee_input_amount,
+                current_timestamp,
+                ..Default::default()
             }))
         }
     }

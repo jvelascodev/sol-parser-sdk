@@ -10,6 +10,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Signature};
 /// Meteora DAMM V2 discriminator 常量
 pub mod discriminators {
     pub const SWAP_LOG: [u8; 8] = [27, 60, 21, 213, 138, 170, 187, 147];
+    pub const SWAP2_LOG: [u8; 8] = [189, 66, 51, 168, 38, 80, 117, 153];
     pub const CREATE_POSITION_LOG: [u8; 8] = [156, 15, 119, 198, 29, 181, 221, 55];
     pub const CLOSE_POSITION_LOG: [u8; 8] = [20, 145, 144, 68, 143, 142, 214, 178];
     pub const ADD_LIQUIDITY_LOG: [u8; 8] = [175, 242, 8, 157, 30, 247, 185, 169];
@@ -46,6 +47,17 @@ pub fn parse_instruction(
     match cpi_discriminator {
         discriminators::SWAP_LOG => {
             return parse_swap_log_instruction(
+                cpi_data,
+                accounts,
+                signature,
+                slot,
+                tx_index,
+                block_time_us,
+                grpc_recv_us,
+            )
+        }
+        discriminators::SWAP2_LOG => {
+            return parse_swap2_log_instruction(
                 cpi_data,
                 accounts,
                 signature,
@@ -181,6 +193,125 @@ fn parse_swap_log_instruction(
         lp_fee,
         protocol_fee,
         partner_fee,
+        referral_fee,
+        actual_amount_in,
+        current_timestamp,
+        ..Default::default()
+    }))
+}
+
+/// 解析 Swap2 指令 (EvtSwap2 格式)
+fn parse_swap2_log_instruction(
+    data: &[u8],
+    accounts: &[Pubkey],
+    signature: Signature,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
+    rpc_recv_us: i64,
+) -> Option<DexEvent> {
+    let mut offset = 0;
+
+    // pool (Pubkey - 32 bytes)
+    let pool = read_pubkey(data, offset)?;
+    offset += 32;
+
+    // config (Pubkey - 32 bytes)
+    let _config = read_pubkey(data, offset)?;
+    offset += 32;
+
+    // tradeDirection (u8 - 1 byte)
+    let trade_direction = read_u8(data, offset)?;
+    offset += 1;
+
+    // hasReferral (bool - 1 byte)
+    let has_referral = read_bool(data, offset)?;
+    offset += 1;
+
+    // SwapParameters2
+    // params.amount_0 (u64 - 8 bytes)
+    let amount_0 = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // params.amount_1 (u64 - 8 bytes)
+    let amount_1 = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // params.swap_mode (u8 - 1 byte)
+    let swap_mode = read_u8(data, offset)?;
+    offset += 1;
+
+    // SwapResult2
+    // swapResult.included_fee_input_amount (u64 - 8 bytes)
+    let included_fee_input_amount = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // swapResult.excluded_fee_input_amount (u64 - 8 bytes)
+    let excluded_fee_input_amount = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // swapResult.amount_left (u64 - 8 bytes)
+    let amount_left = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // swapResult.output_amount (u64 - 8 bytes)
+    let output_amount = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // swapResult.next_sqrt_price (u128 - 16 bytes)
+    let next_sqrt_price = read_u128_le(data, offset)?;
+    offset += 16;
+
+    // swapResult.trading_fee (u64 - 8 bytes)
+    let lp_fee = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // swapResult.protocol_fee (u64 - 8 bytes)
+    let protocol_fee = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // swapResult.referral_fee (u64 - 8 bytes)
+    let referral_fee = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // quote_reserve_amount (u64 - 8 bytes)
+    let _quote_reserve_amount = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // migration_threshold (u64 - 8 bytes)
+    let _migration_threshold = read_u64_le(data, offset)?;
+    offset += 8;
+
+    // currentTimestamp (u64 - 8 bytes)
+    let current_timestamp = read_u64_le(data, offset)?;
+
+    let metadata =
+        create_metadata(signature, slot, tx_index, block_time_us.unwrap_or_default(), rpc_recv_us);
+
+    // 根据 swap_mode 和 trade_direction 确定实际的 amount_in
+    // swap_mode: 0 = ExactIn, 1 = ExactOut
+    let (amount_in, minimum_amount_out) = if swap_mode == 0 {
+        // ExactIn: amount_0 is amount_in, amount_1 is minimum_amount_out
+        (amount_0, amount_1)
+    } else {
+        // ExactOut: amount_1 is maximum_amount_in, amount_0 is amount_out
+        (amount_1, amount_0)
+    };
+
+    let actual_amount_in = included_fee_input_amount;
+
+    Some(DexEvent::MeteoraDammV2Swap(MeteoraDammV2SwapEvent {
+        metadata,
+        pool,
+        trade_direction,
+        has_referral,
+        amount_in,
+        minimum_amount_out,
+        output_amount,
+        next_sqrt_price,
+        lp_fee,
+        protocol_fee,
+        partner_fee: 0, // SwapResult2 没有 partner_fee
         referral_fee,
         actual_amount_in,
         current_timestamp,

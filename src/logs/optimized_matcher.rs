@@ -216,6 +216,7 @@ mod discriminators {
     
     // Meteora DAMM V2 discriminators
     pub const METEORA_DAMM_SWAP: u64 = u64::from_le_bytes([27, 60, 21, 213, 138, 170, 187, 147]);
+    pub const METEORA_DAMM_SWAP2: u64 = u64::from_le_bytes([189, 66, 51, 168, 38, 80, 117, 153]);
     pub const METEORA_DAMM_ADD_LIQUIDITY: u64 = u64::from_le_bytes([175, 242, 8, 157, 30, 247, 185, 169]);
     pub const METEORA_DAMM_REMOVE_LIQUIDITY: u64 = u64::from_le_bytes([87, 46, 88, 98, 175, 96, 34, 91]);
     pub const METEORA_DAMM_INITIALIZE_POOL: u64 = u64::from_le_bytes([228, 50, 246, 85, 203, 66, 134, 37]);
@@ -491,6 +492,7 @@ pub fn parse_log_optimized(
         
         // Meteora DAMM V2
         discriminators::METEORA_DAMM_SWAP |
+        discriminators::METEORA_DAMM_SWAP2 |
         discriminators::METEORA_DAMM_ADD_LIQUIDITY |
         discriminators::METEORA_DAMM_REMOVE_LIQUIDITY |
         discriminators::METEORA_DAMM_INITIALIZE_POOL |
