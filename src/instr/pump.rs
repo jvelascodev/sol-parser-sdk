@@ -219,6 +219,7 @@ fn parse_create_instruction(
 }
 
 /// Parse Migrate CPI instruction
+#[allow(unused_variables)]
 fn parse_migrate_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],

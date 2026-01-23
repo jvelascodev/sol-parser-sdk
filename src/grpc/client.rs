@@ -17,7 +17,6 @@ use futures::{SinkExt, StreamExt};
 use log::error;
 use memchr::memmem;
 use once_cell::sync::Lazy;
-use solana_sdk::pubkey::Pubkey;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

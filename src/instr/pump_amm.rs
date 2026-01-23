@@ -49,8 +49,11 @@ pub fn parse_instruction(
 
     // Route based on discriminator
     match discriminator {
-        discriminators::BUY | discriminators::BUY_EXACT_QUOTE_IN => {
+        discriminators::BUY => {
             parse_buy_instruction(data, accounts, signature, slot, tx_index, block_time_us)
+        }
+        discriminators::BUY_EXACT_QUOTE_IN => {
+            parse_buy_exact_quote_in_instruction(data, accounts, signature, slot, tx_index, block_time_us)
         }
         discriminators::SELL => {
             parse_sell_instruction(data, accounts, signature, slot, tx_index, block_time_us)
@@ -68,8 +71,8 @@ pub fn parse_instruction(
     }
 }
 
-/// Parse buy/buy_exact_quote_in instruction
-/// 
+/// Parse buy instruction
+///
 /// Account indices (from pump_amm.json):
 /// 0: pool, 1: user, 2: global_config, 3: base_mint, 4: quote_mint,
 /// 5: user_base_token_account, 6: user_quote_token_account,
@@ -90,7 +93,7 @@ fn parse_buy_instruction(
     }
 
     // Parse args: base_amount_out (u64), max_quote_amount_in (u64)
-    // For buy_exact_quote_in: spendable_quote_in (u64), min_base_amount_out (u64)
+    // NOTE: buy instruction has TOKEN first, SOL second
     let (base_amount, quote_amount) = if data.len() >= 16 {
         (read_u64_le(data, 0).unwrap_or(0), read_u64_le(data, 8).unwrap_or(0))
     } else {
@@ -98,7 +101,65 @@ fn parse_buy_instruction(
     };
 
     let metadata = create_metadata(
-        signature, slot, tx_index, 
+        signature, slot, tx_index,
+        block_time_us.unwrap_or_default(), 0
+    );
+
+    Some(DexEvent::PumpSwapBuy(PumpSwapBuyEvent {
+        metadata,
+        pool: get_account(accounts, 0).unwrap_or_default(),
+        user: get_account(accounts, 1).unwrap_or_default(),
+        base_mint: get_account(accounts, 3).unwrap_or_default(),
+        quote_mint: get_account(accounts, 4).unwrap_or_default(),
+        user_base_token_account: get_account(accounts, 5).unwrap_or_default(),
+        user_quote_token_account: get_account(accounts, 6).unwrap_or_default(),
+        pool_base_token_account: get_account(accounts, 7).unwrap_or_default(),
+        pool_quote_token_account: get_account(accounts, 8).unwrap_or_default(),
+        protocol_fee_recipient: get_account(accounts, 9).unwrap_or_default(),
+        protocol_fee_recipient_token_account: get_account(accounts, 10).unwrap_or_default(),
+        base_token_program: get_account(accounts, 11).unwrap_or_default(),
+        quote_token_program: get_account(accounts, 12).unwrap_or_default(),
+        base_amount_out: base_amount,
+        max_quote_amount_in: quote_amount,
+        ..Default::default()
+    }))
+}
+
+/// Parse buy_exact_quote_in instruction
+///
+/// IMPORTANT: Parameter order is DIFFERENT from buy instruction!
+/// - buy: base_amount_out (token) first, max_quote_amount_in (SOL) second
+/// - buy_exact_quote_in: spendable_quote_in (SOL) first, min_base_amount_out (token) second
+///
+/// Account indices (from pump_amm.json):
+/// 0: pool, 1: user, 2: global_config, 3: base_mint, 4: quote_mint,
+/// 5: user_base_token_account, 6: user_quote_token_account,
+/// 7: pool_base_token_account, 8: pool_quote_token_account,
+/// 9: protocol_fee_recipient, 10: protocol_fee_recipient_token_account,
+/// 11: base_token_program, 12: quote_token_program
+#[allow(dead_code)]
+fn parse_buy_exact_quote_in_instruction(
+    data: &[u8],
+    accounts: &[Pubkey],
+    signature: Signature,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
+) -> Option<DexEvent> {
+    if accounts.len() < 13 {
+        return None;
+    }
+
+    // Parse args: spendable_quote_in (u64), min_base_amount_out (u64)
+    // NOTE: buy_exact_quote_in has SOL first, TOKEN second (reversed from buy!)
+    let (quote_amount, base_amount) = if data.len() >= 16 {
+        (read_u64_le(data, 0).unwrap_or(0), read_u64_le(data, 8).unwrap_or(0))
+    } else {
+        (0, 0)
+    };
+
+    let metadata = create_metadata(
+        signature, slot, tx_index,
         block_time_us.unwrap_or_default(), 0
     );
 

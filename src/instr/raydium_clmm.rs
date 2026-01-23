@@ -79,10 +79,10 @@ fn parse_swap_instruction(
 ) -> Option<DexEvent> {
     let mut offset = 0;
 
-    let amount = read_u64_le(data, offset)?;
+    let _amount = read_u64_le(data, offset)?;
     offset += 8;
 
-    let other_amount_threshold = read_u64_le(data, offset)?;
+    let _other_amount_threshold = read_u64_le(data, offset)?;
     offset += 8;
 
     let sqrt_price_limit_x64 = read_u64_le(data, offset)? as u128;

@@ -7,7 +7,7 @@
 
 use crate::core::{events::*, merger::merge_events};
 use crate::grpc::types::EventTypeFilter;
-use crate::instr::{pump_inner, read_pubkey_fast};
+use crate::instr::read_pubkey_fast;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
 use std::collections::HashMap;

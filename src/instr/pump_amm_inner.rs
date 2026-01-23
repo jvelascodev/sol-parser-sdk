@@ -29,8 +29,6 @@
 use crate::core::events::*;
 use crate::instr::inner_common::*;
 
-#[cfg(feature = "parse-borsh")]
-use borsh::BorshDeserialize;
 
 /// PumpSwap inner instruction discriminators (16 bytes)
 /// Format: [event_magic (8 bytes) | event_discriminator (8 bytes)]
@@ -38,6 +36,7 @@ use borsh::BorshDeserialize;
 /// The event_discriminator matches the 8-byte log discriminator for each event type
 pub mod discriminators {
     /// Common magic prefix for all PumpSwap inner instructions
+    #[allow(dead_code)]
     const MAGIC_PREFIX: [u8; 8] = [228, 69, 165, 46, 81, 203, 154, 29];
 
     /// BuyEvent
@@ -484,9 +483,9 @@ fn parse_add_liquidity_inner(data: &[u8], metadata: EventMetadata) -> Option<Dex
         }
 
         let mut offset = 0;
-        let pool = read_pubkey_unchecked(data, offset);
+        let _pool = read_pubkey_unchecked(data, offset);
         offset += 32;
-        let user = read_pubkey_unchecked(data, offset);
+        let _user = read_pubkey_unchecked(data, offset);
         offset += 32;
         let base_amount = read_u64_unchecked(data, offset);
         offset += 8;
@@ -513,9 +512,9 @@ fn parse_remove_liquidity_inner(data: &[u8], metadata: EventMetadata) -> Option<
         }
 
         let mut offset = 0;
-        let pool = read_pubkey_unchecked(data, offset);
+        let _pool = read_pubkey_unchecked(data, offset);
         offset += 32;
-        let user = read_pubkey_unchecked(data, offset);
+        let _user = read_pubkey_unchecked(data, offset);
         offset += 32;
         let lp_amount = read_u64_unchecked(data, offset);
         offset += 8;

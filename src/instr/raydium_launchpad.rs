@@ -48,6 +48,7 @@ pub fn parse_instruction(
 }
 
 /// 解析交易指令
+#[allow(unused_variables)]
 fn parse_trade_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -80,7 +81,7 @@ fn parse_trade_instruction(
 
 /// 解析池创建指令
 fn parse_pool_create_instruction(
-    data: &[u8],
+    _data: &[u8],
     accounts: &[Pubkey],
     signature: Signature,
     slot: u64,
@@ -112,7 +113,7 @@ fn parse_migrate_amm_instruction(
     tx_index: u64,
     block_time_us: Option<i64>,
 ) -> Option<DexEvent> {
-    let mut offset = 0;
+    let offset = 0;
 
     let liquidity_amount = read_u64_le(data, offset)?;
 

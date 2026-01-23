@@ -66,10 +66,10 @@ fn parse_swap_base_in_instruction(
 ) -> Option<DexEvent> {
     let mut offset = 0;
 
-    let amount_in = read_u64_le(data, offset)?;
+    let _amount_in = read_u64_le(data, offset)?;
     offset += 8;
 
-    let minimum_amount_out = read_u64_le(data, offset)?;
+    let _minimum_amount_out = read_u64_le(data, offset)?;
 
     let pool = get_account(accounts, 0)?;
     let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, pool);
@@ -118,10 +118,10 @@ fn parse_swap_base_out_instruction(
 ) -> Option<DexEvent> {
     let mut offset = 0;
 
-    let maximum_amount_in = read_u64_le(data, offset)?;
+    let _maximum_amount_in = read_u64_le(data, offset)?;
     offset += 8;
 
-    let amount_out = read_u64_le(data, offset)?;
+    let _amount_out = read_u64_le(data, offset)?;
 
     let pool = get_account(accounts, 0)?;
     let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, pool);
@@ -176,7 +176,7 @@ fn parse_initialize_instruction(
     let init_amount1 = read_u64_le(data, offset)?;
     offset += 8;
 
-    let open_time = read_u64_le(data, offset)?;
+    let _open_time = read_u64_le(data, offset)?;
 
     let pool = get_account(accounts, 0)?;
     let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, pool);

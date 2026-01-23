@@ -123,7 +123,7 @@ fn parse_initialize_bin_array_instruction(
     tx_index: u64,
     block_time_us: Option<i64>,
 ) -> Option<DexEvent> {
-    let mut offset = 0;
+    let offset = 0;
 
     let index = read_u64_le(data, offset)? as i64;
 
@@ -149,7 +149,7 @@ fn parse_add_liquidity_instruction(
 ) -> Option<DexEvent> {
     let mut offset = 0;
 
-    let liquidity_parameter = read_bytes(data, offset, 32)?;
+    let _liquidity_parameter = read_bytes(data, offset, 32)?;
     offset += 32;
 
     let amounts = read_vec_u64(data, offset)?;
@@ -181,7 +181,7 @@ fn parse_remove_liquidity_instruction(
 ) -> Option<DexEvent> {
     let mut offset = 0;
 
-    let bin_liquidity_removal = read_bytes(data, offset, 32)?;
+    let _bin_liquidity_removal = read_bytes(data, offset, 32)?;
     offset += 32;
 
     let amounts = read_vec_u64(data, offset)?;
@@ -245,7 +245,7 @@ fn parse_swap_instruction(
     let amount_in = read_u64_le(data, offset)?;
     offset += 8;
 
-    let min_amount_out = read_u64_le(data, offset)?;
+    let _min_amount_out = read_u64_le(data, offset)?;
 
     let pool = get_account(accounts, 0)?;
     let metadata = create_metadata_simple(signature, slot, tx_index, block_time_us, pool);

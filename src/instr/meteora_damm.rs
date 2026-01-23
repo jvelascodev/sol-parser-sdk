@@ -21,6 +21,7 @@ pub mod discriminators {
 pub const PROGRAM_ID_PUBKEY: Pubkey = program_ids::METEORA_DAMM_V2_PROGRAM_ID;
 
 /// 主要的 Meteora DAMM V2 指令解析函数
+#[allow(unused_variables)]
 pub fn parse_instruction(
     instruction_data: &[u8],
     accounts: &[Pubkey],
@@ -116,6 +117,7 @@ pub fn parse_instruction(
 }
 
 /// 解析 Swap 指令
+#[allow(unused_variables)]
 fn parse_swap_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -201,6 +203,7 @@ fn parse_swap_log_instruction(
 }
 
 /// 解析 Swap2 指令 (EvtSwap2 格式)
+#[allow(unused_variables)]
 fn parse_swap2_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -247,11 +250,11 @@ fn parse_swap2_log_instruction(
     offset += 8;
 
     // swapResult.excluded_fee_input_amount (u64 - 8 bytes)
-    let excluded_fee_input_amount = read_u64_le(data, offset)?;
+    let _excluded_fee_input_amount = read_u64_le(data, offset)?;
     offset += 8;
 
     // swapResult.amount_left (u64 - 8 bytes)
-    let amount_left = read_u64_le(data, offset)?;
+    let _amount_left = read_u64_le(data, offset)?;
     offset += 8;
 
     // swapResult.output_amount (u64 - 8 bytes)
@@ -320,6 +323,7 @@ fn parse_swap2_log_instruction(
 }
 
 /// 解析 Create Position Log 指令
+#[allow(unused_variables)]
 fn parse_create_position_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -359,6 +363,7 @@ fn parse_create_position_log_instruction(
 }
 
 /// 解析 Close Position Log 指令
+#[allow(unused_variables)]
 fn parse_close_position_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -398,6 +403,7 @@ fn parse_close_position_log_instruction(
 }
 
 /// 解析 Add Liquidity Log 指令
+#[allow(unused_variables)]
 fn parse_add_liquidity_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -467,6 +473,7 @@ fn parse_add_liquidity_log_instruction(
 }
 
 /// 解析 Add Liquidity Log 指令
+#[allow(unused_variables)]
 fn parse_remove_liquidity_log_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -508,7 +515,6 @@ fn parse_remove_liquidity_log_instruction(
 
     // tokenBAmount (u64 - 8 bytes)
     let token_b_amount = read_u64_le(data, offset)?;
-    offset += 8;
 
     let metadata =
         create_metadata(signature, slot, tx_index, block_time_us.unwrap_or_default(), rpc_recv_us);

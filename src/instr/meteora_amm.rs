@@ -199,22 +199,22 @@ fn parse_create_pool_instruction(
     let curve_type = read_u8(data, offset)?;
     offset += 1;
 
-    let trade_fee_numerator = read_u64_le(data, offset)?;
+    let _trade_fee_numerator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let trade_fee_denominator = read_u64_le(data, offset)?;
+    let _trade_fee_denominator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_trade_fee_numerator = read_u64_le(data, offset)?;
+    let _owner_trade_fee_numerator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_trade_fee_denominator = read_u64_le(data, offset)?;
+    let _owner_trade_fee_denominator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_withdraw_fee_numerator = read_u64_le(data, offset)?;
+    let _owner_withdraw_fee_numerator = read_u64_le(data, offset)?;
     offset += 8;
 
-    let owner_withdraw_fee_denominator = read_u64_le(data, offset)?;
+    let _owner_withdraw_fee_denominator = read_u64_le(data, offset)?;
 
     let pool = get_account(accounts, 0)?;
     let token_a_mint = get_account(accounts, 8)?;

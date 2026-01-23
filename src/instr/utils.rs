@@ -124,7 +124,7 @@ pub fn calculate_slippage_bps(amount_in: u64, amount_out_min: u64) -> u16 {
 }
 
 /// 计算价格影响基点
-pub fn calculate_price_impact_bps(amount_in: u64, amount_out: u64, expected_out: u64) -> u16 {
+pub fn calculate_price_impact_bps(_amount_in: u64, amount_out: u64, expected_out: u64) -> u16 {
     if expected_out == 0 {
         return 0;
     }
@@ -158,7 +158,7 @@ pub fn read_str_unchecked(data: &[u8], offset: usize) -> Option<(&str, usize)> {
 }
 
 /// 从指令数据中读取u64向量（简化版本）
-pub fn read_vec_u64(data: &[u8], _offset: usize) -> Option<Vec<u64>> {
+pub fn read_vec_u64(_data: &[u8], _offset: usize) -> Option<Vec<u64>> {
     // 简化版本：返回默认的两个元素向量
     // 实际实现需要根据具体的数据格式来解析
     Some(vec![0, 0])

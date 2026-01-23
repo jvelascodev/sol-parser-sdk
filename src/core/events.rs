@@ -954,6 +954,21 @@ pub struct RaydiumAmmV4WithdrawPnlEvent {
 
 // ====================== Account Events ======================
 
+/// Bonk (Raydium Launchpad) AmmCreatorFeeOn enum
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AmmCreatorFeeOn {
+    QuoteToken = 0,
+    BothToken = 1,
+}
+
+/// Bonk (Raydium Launchpad) VestingSchedule
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VestingSchedule {
+    pub total_locked_amount: u64,
+    pub cliff_period: u64,
+    pub unlock_period: u64,
+}
+
 /// Bonk Pool State Account Event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BonkPoolStateAccountEvent {
@@ -964,13 +979,35 @@ pub struct BonkPoolStateAccountEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BonkPoolState {
-    pub creator: Pubkey,
-    pub base_mint: Pubkey,
-    pub quote_mint: Pubkey,
+    pub epoch: u64,
+    pub auth_bump: u8,
+    pub status: u8,
+    pub base_decimals: u8,
+    pub quote_decimals: u8,
+    pub migrate_type: u8,
+    pub supply: u64,
+    pub total_base_sell: u64,
     pub virtual_base: u64,
     pub virtual_quote: u64,
     pub real_base: u64,
     pub real_quote: u64,
+    pub total_quote_fund_raising: u64,
+    pub quote_protocol_fee: u64,
+    pub platform_fee: u64,
+    pub migrate_fee: u64,
+    pub vesting_schedule: VestingSchedule,
+    pub global_config: Pubkey,
+    pub platform_config: Pubkey,
+    pub base_mint: Pubkey,
+    pub quote_mint: Pubkey,
+    pub base_vault: Pubkey,
+    pub quote_vault: Pubkey,
+    pub creator: Pubkey,
+    pub token_program_flag: u8,
+    pub amm_creator_fee_on: AmmCreatorFeeOn,
+    pub platform_vesting_share: u64,
+    #[serde(with = "serde_big_array::BigArray")]
+    pub padding: [u8; 54],
 }
 
 /// Bonk Global Config Account Event
@@ -996,10 +1033,54 @@ pub struct BonkPlatformConfigAccountEvent {
     pub platform_config: BonkPlatformConfig,
 }
 
+/// Bonk (Raydium Launchpad) BondingCurveParam
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BondingCurveParam {
+    pub migrate_type: u8,
+    pub migrate_cpmm_fee_on: u8,
+    pub supply: u64,
+    pub total_base_sell: u64,
+    pub total_quote_fund_raising: u64,
+    pub total_locked_amount: u64,
+    pub cliff_period: u64,
+    pub unlock_period: u64,
+}
+
+/// Bonk (Raydium Launchpad) PlatformCurveParam
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlatformCurveParam {
+    pub epoch: u64,
+    pub index: u8,
+    pub global_config: Pubkey,
+    pub bonding_curve_param: BondingCurveParam,
+    #[serde(with = "serde_big_array::BigArray")]
+    pub padding: [u64; 50],
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BonkPlatformConfig {
-    pub fee_recipient: Pubkey,
+    pub epoch: u64,
+    pub platform_fee_wallet: Pubkey,
+    pub platform_nft_wallet: Pubkey,
+    pub platform_scale: u64,
+    pub creator_scale: u64,
+    pub burn_scale: u64,
     pub fee_rate: u64,
+    #[serde(with = "serde_big_array::BigArray")]
+    pub name: [u8; 64],
+    #[serde(with = "serde_big_array::BigArray")]
+    pub web: [u8; 256],
+    #[serde(with = "serde_big_array::BigArray")]
+    pub img: [u8; 256],
+    pub cpswap_config: Pubkey,
+    pub creator_fee_rate: u64,
+    pub transfer_fee_extension_auth: Pubkey,
+    pub platform_vesting_wallet: Pubkey,
+    pub platform_vesting_scale: u64,
+    pub platform_cp_creator: Pubkey,
+    #[serde(with = "serde_big_array::BigArray")]
+    pub padding: [u8; 108],
+    pub curve_params: Vec<PlatformCurveParam>,
 }
 
 /// PumpSwap Global Config Account Event
@@ -1023,6 +1104,10 @@ pub struct PumpSwapGlobalConfig {
     pub protocol_fee_recipients: [Pubkey; 8],
     pub coin_creator_fee_basis_points: u64,
     pub admin_set_coin_creator_authority: Pubkey,
+    pub whitelist_pda: Pubkey,
+    pub reserved_fee_recipient: Pubkey,
+    pub mayhem_mode_enabled: bool,
+    pub reserved_fee_recipients: [Pubkey; 7],
 }
 
 /// PumpSwap Pool Account Event
@@ -1079,7 +1164,6 @@ pub struct PumpFunGlobalAccountEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PumpFunGlobal {
-    pub discriminator: u64,
     pub initialized: bool,
     pub authority: Pubkey,
     pub fee_recipient: Pubkey,
@@ -1088,6 +1172,18 @@ pub struct PumpFunGlobal {
     pub initial_real_token_reserves: u64,
     pub token_total_supply: u64,
     pub fee_basis_points: u64,
+    pub withdraw_authority: Pubkey,
+    pub enable_migrate: bool,
+    pub pool_migration_fee: u64,
+    pub creator_fee_basis_points: u64,
+    pub fee_recipients: [Pubkey; 8],
+    pub set_creator_authority: Pubkey,
+    pub admin_set_creator_authority: Pubkey,
+    pub create_v2_enabled: bool,
+    pub whitelist_pda: Pubkey,
+    pub reserved_fee_recipient: Pubkey,
+    pub mayhem_mode_enabled: bool,
+    pub reserved_fee_recipients: [Pubkey; 7],
 }
 
 /// Raydium AMM V4 Info Account Event
@@ -1210,6 +1306,8 @@ pub struct RaydiumCpmmAmmConfig {
     pub create_pool_fee: u64,
     pub protocol_owner: Pubkey,
     pub fund_owner: Pubkey,
+    pub creator_fee_rate: u64,
+    pub padding: [u64; 15],
 }
 
 /// Raydium CPMM Pool State Account Event
@@ -1224,24 +1322,32 @@ pub struct RaydiumCpmmPoolStateAccountEvent {
 pub struct RaydiumCpmmPoolState {
     pub amm_config: Pubkey,
     pub pool_creator: Pubkey,
-    pub token0_vault: Pubkey,
-    pub token1_vault: Pubkey,
+    pub token_0_vault: Pubkey,
+    pub token_1_vault: Pubkey,
     pub lp_mint: Pubkey,
-    pub token0_mint: Pubkey,
-    pub token1_mint: Pubkey,
-    pub token0_program: Pubkey,
-    pub token1_program: Pubkey,
+    pub token_0_mint: Pubkey,
+    pub token_1_mint: Pubkey,
+    pub token_0_program: Pubkey,
+    pub token_1_program: Pubkey,
+    pub observation_key: Pubkey,
     pub auth_bump: u8,
     pub status: u8,
     pub lp_mint_decimals: u8,
-    pub mint0_decimals: u8,
-    pub mint1_decimals: u8,
+    pub mint_0_decimals: u8,
+    pub mint_1_decimals: u8,
     pub lp_supply: u64,
-    pub protocol_fees_token0: u64,
-    pub protocol_fees_token1: u64,
-    pub fund_fees_token0: u64,
-    pub fund_fees_token1: u64,
+    pub protocol_fees_token_0: u64,
+    pub protocol_fees_token_1: u64,
+    pub fund_fees_token_0: u64,
+    pub fund_fees_token_1: u64,
     pub open_time: u64,
+    pub recent_epoch: u64,
+    pub creator_fee_on: u8,
+    pub enable_creator_fee: bool,
+    pub padding1: [u8; 6],
+    pub creator_fees_token_0: u64,
+    pub creator_fees_token_1: u64,
+    pub padding: [u64; 28],
 }
 
 /// Token Info Event

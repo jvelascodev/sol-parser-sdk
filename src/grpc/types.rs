@@ -1,10 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use yellowstone_grpc_proto::geyser::{
-    subscribe_request_filter_accounts_filter::Filter,
-    subscribe_request_filter_accounts_filter_memcmp::Data, SubscribeRequestFilterAccountsFilter,
-    SubscribeRequestFilterAccountsFilterMemcmp,
-};
+use yellowstone_grpc_proto::geyser::SubscribeRequestFilterAccountsFilter;
 
 /// 事件输出顺序模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

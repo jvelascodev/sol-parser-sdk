@@ -72,6 +72,23 @@ pub fn parse_global_config(account: &AccountData, metadata: EventMetadata) -> Op
     offset += 8;
 
     let admin_set_coin_creator_authority = read_pubkey(data, offset)?;
+    offset += 32;
+
+    let whitelist_pda = read_pubkey(data, offset)?;
+    offset += 32;
+
+    let reserved_fee_recipient = read_pubkey(data, offset)?;
+    offset += 32;
+
+    let mayhem_mode_enabled = read_u8(data, offset)? != 0;
+    offset += 1;
+
+    // 读取 7 个 reserved_fee_recipients
+    let mut reserved_fee_recipients = [solana_sdk::pubkey::Pubkey::default(); 7];
+    for i in 0..7 {
+        reserved_fee_recipients[i] = read_pubkey(data, offset)?;
+        offset += 32;
+    }
 
     let global_config = PumpSwapGlobalConfig {
         admin,
@@ -81,6 +98,10 @@ pub fn parse_global_config(account: &AccountData, metadata: EventMetadata) -> Op
         protocol_fee_recipients,
         coin_creator_fee_basis_points,
         admin_set_coin_creator_authority,
+        whitelist_pda,
+        reserved_fee_recipient,
+        mayhem_mode_enabled,
+        reserved_fee_recipients,
     };
 
     Some(DexEvent::PumpSwapGlobalConfigAccount(

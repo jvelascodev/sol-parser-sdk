@@ -29,8 +29,6 @@
 
 use crate::core::events::*;
 
-#[cfg(feature = "parse-borsh")]
-use borsh::BorshDeserialize;
 
 // ============================================================================
 // Inner Instruction Discriminators (16 bytes)

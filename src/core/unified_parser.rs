@@ -28,14 +28,14 @@ use smallvec::{SmallVec, smallvec};
 /// - 预分配容量，避免动态扩容
 #[inline]  // 零延迟优化：内联
 pub fn parse_transaction_events(
-    instruction_data: &[u8],
-    accounts: &[Pubkey],
+    _instruction_data: &[u8],
+    _accounts: &[Pubkey],
     logs: &[String],
     signature: Signature,
     slot: u64,
-    tx_index: u64,
+    _tx_index: u64,
     block_time_us: Option<i64>,
-    program_id: &Pubkey,
+    _program_id: &Pubkey,
 ) -> SmallVec<[DexEvent; 4]> {  // 零延迟优化：SmallVec 栈分配
     let mut events = smallvec![];  // 栈分配，容量 4
 
@@ -100,14 +100,14 @@ pub fn parse_transaction_with_listener<T: EventListener>(
 /// 这个版本不做事件合并，确保每个事件都能立即被处理
 /// 适用于需要实时响应的场景
 pub fn parse_transaction_events_streaming<F>(
-    instruction_data: &[u8],
-    accounts: &[Pubkey],
+    _instruction_data: &[u8],
+    _accounts: &[Pubkey],
     logs: &[String],
     signature: Signature,
     slot: u64,
-    tx_index: u64,
+    _tx_index: u64,
     block_time_us: Option<i64>,
-    program_id: &Pubkey,
+    _program_id: &Pubkey,
     mut callback: F,
 ) where
     F: FnMut(DexEvent)
