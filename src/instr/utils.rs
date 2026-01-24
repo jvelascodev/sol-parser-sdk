@@ -30,18 +30,7 @@ pub fn create_metadata_simple(
     block_time_us: Option<i64>,
     _program_id: Pubkey,
 ) -> EventMetadata {
-    // 优化：macOS 使用 CLOCK_REALTIME（Linux 可用 CLOCK_REALTIME_COARSE）
-    let current_time = unsafe {
-        let mut ts = libc::timespec {
-            tv_sec: 0,
-            tv_nsec: 0,
-        };
-        #[cfg(target_os = "linux")]
-        libc::clock_gettime(libc::CLOCK_REALTIME_COARSE, &mut ts);
-        #[cfg(not(target_os = "linux"))]
-        libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-        (ts.tv_sec as i64 * 1_000_000) + (ts.tv_nsec as i64 / 1_000)
-    };
+    let current_time = now_us();
 
     EventMetadata {
         signature,
@@ -240,6 +229,7 @@ pub fn get_instruction_account_getter<'a>(
 
 /// 预构建的 inner_instructions 索引，用于 O(1) 查找
 use std::collections::HashMap;
+use crate::core::clock::now_us;
 
 /// InnerInstructions 索引缓存
 pub struct InnerInstructionsIndex<'a> {

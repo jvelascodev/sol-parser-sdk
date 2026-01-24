@@ -45,6 +45,7 @@ pub use utils::*;
 
 use crate::core::events::DexEvent;
 use solana_sdk::signature::Signature;
+use crate::core::clock::now_us;
 
 /// 主日志解析入口函数
 #[inline(always)]  // 零延迟优化：内联热路径
@@ -78,11 +79,7 @@ pub fn parse_log_unified(
     slot: u64,
     block_time_us: Option<i64>,
 ) -> Option<DexEvent> {
-    let grpc_recv_us = unsafe {
-        let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-        libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-        (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
-    };
+    let grpc_recv_us = now_us();
     optimized_matcher::parse_log_optimized(
         log,
         signature,

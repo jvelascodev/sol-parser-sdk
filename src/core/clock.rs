@@ -227,6 +227,32 @@ pub fn now_nanos() -> i128 {
     clock.now_nanos()
 }
 
+// 平台差异：Windows 使用 now_micros()；Linux 使用 CLOCK_REALTIME_COARSE；其他使用 CLOCK_REALTIME
+#[inline(always)]
+pub fn now_us() -> i64 {
+    #[cfg(target_os = "windows")]
+    {
+        now_micros()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let clock_id = {
+            #[cfg(target_os = "linux")]
+            { libc::CLOCK_REALTIME_COARSE }
+
+            #[cfg(not(target_os = "linux"))]
+            { libc::CLOCK_REALTIME }
+        };
+
+        let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+        unsafe {
+            libc::clock_gettime(clock_id, &mut ts);
+        }
+        (ts.tv_sec as i64) * 1_000_000 + (ts.tv_nsec as i64) / 1_000
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
