@@ -4,7 +4,10 @@
 
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use crate::core::events::EventMetadata;
+#[cfg(target_os = "windows")]
+use crate::core::now_micros;
 use base64::{Engine as _, engine::general_purpose};
+use crate::core::clock::now_us;
 
 /// 从日志中提取程序数据（使用 SIMD 优化查找）
 #[inline]
@@ -172,18 +175,7 @@ pub fn create_metadata_default(
     tx_index: u64,
     block_time_us: Option<i64>,
 ) -> EventMetadata {
-    // 优化：macOS 使用 CLOCK_REALTIME（Linux 可用 CLOCK_REALTIME_COARSE）
-    let current_time = unsafe {
-        let mut ts = libc::timespec {
-            tv_sec: 0,
-            tv_nsec: 0,
-        };
-        #[cfg(target_os = "linux")]
-        libc::clock_gettime(libc::CLOCK_REALTIME_COARSE, &mut ts);
-        #[cfg(not(target_os = "linux"))]
-        libc::clock_gettime(libc::CLOCK_REALTIME, &mut ts);
-        (ts.tv_sec as i64 * 1_000_000) + (ts.tv_nsec as i64 / 1_000)
-    };
+    let current_time = now_us();
     EventMetadata {
         signature,
         slot,
