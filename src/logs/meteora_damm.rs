@@ -218,15 +218,15 @@ fn parse_swap2_event(
     let pool = read_pubkey(data, offset)?;
     offset += 32;
 
-    // config (Pubkey - 32 bytes)
-    let _config = read_pubkey(data, offset)?;
-    offset += 32;
-
-    // tradeDirection (u8 - 1 byte)
+    // trade_direction (u8 - 1 byte)
     let trade_direction = read_u8(data, offset)?;
     offset += 1;
 
-    // hasReferral (bool - 1 byte)
+    // collect_fee_mode (u8 - 1 byte)
+    let _collect_fee_mode = read_u8(data, offset)?;
+    offset += 1;
+
+    // has_referral (bool - 1 byte)
     let has_referral = read_bool(data, offset)?;
     offset += 1;
 

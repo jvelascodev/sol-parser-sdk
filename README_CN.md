@@ -114,13 +114,16 @@ cargo run --example pumpswap_ordered --release
 | `pumpfun_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn）- 无序模式 | `cargo run --example pumpfun_trade_filter --release` |
 | `pumpfun_trade_filter_ordered` | PumpFun 交易过滤 + StreamingOrdered 有序模式 | `cargo run --example pumpfun_trade_filter_ordered --release` |
 | `pumpfun_quick_test` | PumpFun 快速连接测试（接收前 10 个事件） | `cargo run --example pumpfun_quick_test --release` |
-| `parse_pump_tx` | 从 RPC 解析特定 PumpFun 交易 | `cargo run --example parse_pump_tx --release` |
+| `parse_pump_tx` | 从 RPC 解析特定 PumpFun 交易 | `TX_SIGNATURE=<sig> cargo run --example parse_pump_tx --release` |
 | `debug_pump_tx` | 调试 PumpFun 交易解析 | `cargo run --example debug_pump_tx --release` |
 | **PumpSwap 示例** |
 | `pumpswap_low_latency` | PumpSwap 超低延迟测试（无序，完整事件数据） | `cargo run --example pumpswap_low_latency --release` |
 | `pumpswap_ordered` | PumpSwap 买入/卖出/创建池 + MicroBatch 有序模式 | `cargo run --example pumpswap_ordered --release` |
-| `parse_pumpswap_tx` | 从 RPC 解析特定 PumpSwap 交易 | `cargo run --example parse_pumpswap_tx --release` |
+| `parse_pumpswap_tx` | 从 RPC 解析特定 PumpSwap 交易 | `TX_SIGNATURE=<sig> cargo run --example parse_pumpswap_tx --release` |
 | `debug_pumpswap_tx` | 调试 PumpSwap 交易解析 | `cargo run --example debug_pumpswap_tx --release` |
+| **Meteora DAMM 示例** |
+| `meteora_damm_grpc` | Meteora DAMM gRPC 流式订阅（Swap/Swap2/AddLiquidity/RemoveLiquidity） | `cargo run --example meteora_damm_grpc --release` |
+| `parse_meteora_damm_tx` | 从 RPC 解析特定 Meteora DAMM 交易 | `TX_SIGNATURE=<sig> cargo run --example parse_meteora_damm_tx --release` |
 | **工具示例** |
 | `dynamic_subscription` | 动态更新过滤器（无需重连） | `cargo run --example dynamic_subscription --release` |
 
