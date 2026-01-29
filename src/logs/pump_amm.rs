@@ -164,14 +164,6 @@ unsafe fn read_pubkey_unchecked(data: &[u8], offset: usize) -> Pubkey {
         }
     }
 
-    #[cfg(target_arch = "aarch64")]
-    {
-        use std::arch::aarch64::_prefetch;
-        if offset + 64 < data.len() {
-            _prefetch(data.as_ptr().add(offset + 32), _MM_HINT_T0);
-        }
-    }
-
     let ptr = data.as_ptr().add(offset);
     let mut bytes = [0u8; 32];
     std::ptr::copy_nonoverlapping(ptr, bytes.as_mut_ptr(), 32);
