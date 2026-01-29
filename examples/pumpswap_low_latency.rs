@@ -6,11 +6,11 @@
 //! - 测试端到端延迟性能
 //! - 无排序开销，直接释放事件
 
+use sol_parser_sdk::core::now_micros;
 use sol_parser_sdk::grpc::{
     AccountFilter, ClientConfig, EventType, EventTypeFilter, OrderMode, Protocol,
     TransactionFilter, YellowstoneGrpc,
 };
-use sol_parser_sdk::core::now_micros;
 use sol_parser_sdk::DexEvent;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -34,7 +34,8 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
         request_timeout_ms: 30000,
         enable_tls: true,
         // 无序模式：事件解析完立即释放，零延迟
-        order_mode: OrderMode::Unordered,
+        order_mode: OrderMode::StreamingOrdered,
+        order_timeout_ms: 50, // Timeout for incomplete sequences
         ..Default::default()
     };
 
@@ -45,7 +46,7 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
 
     let grpc = YellowstoneGrpc::new_with_config(
         "https://solana-yellowstone-grpc.publicnode.com:443".to_string(),
-        None,
+        Some("50c43591351f63ace0ab49d4947e110c45bd57be6dd3db6148718d9e2ce4be7e".to_string()),
         config,
     )?;
 
@@ -101,18 +102,24 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                 let events_per_sec = (count - last_count) as f64 / 10.0;
 
                 println!("\n╔════════════════════════════════════════════════════╗");
-                println!("║          性能统计 (10秒间隔)                       ║");
+                println!("║          Performance Stats (10s Interval)          ║");
                 println!("╠════════════════════════════════════════════════════╣");
-                println!("║  事件总数: {:>10}                              ║", count);
-                println!("║  事件速率: {:>10.1} events/sec                  ║", events_per_sec);
-                println!("║  队列长度: {:>10}                              ║", queue_len);
-                println!("║  平均延迟: {:>10} μs                           ║", avg);
-                println!("║  最小延迟: {:>10} μs                           ║", if min == u64::MAX { 0 } else { min });
-                println!("║  最大延迟: {:>10} μs                           ║", max);
+                println!("║  Total Events: {:>10}                          ║", count);
+                println!("║  Event Rate:   {:>10.1} events/sec                 ║", events_per_sec);
+                println!("║  Queue Length: {:>10}                          ║", queue_len);
+                println!("║  Avg Latency:  {:>10} μs                       ║", avg);
+                println!(
+                    "║  Min Latency:  {:>10} μs                       ║",
+                    if min == u64::MAX { 0 } else { min }
+                );
+                println!("║  Max Latency:  {:>10} μs                       ║", max);
                 println!("╚════════════════════════════════════════════════════╝\n");
 
                 if queue_len > 1000 {
-                    println!("⚠️  警告: 队列堆积 ({}), 消费速度 < 生产速度", queue_len);
+                    println!(
+                        "⚠️  WARNING: Queue Backlog ({}), Consumption Rate < Production Rate",
+                        queue_len
+                    );
                 }
             }
 
@@ -138,14 +145,20 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                 let queue_recv_us = now_micros();
 
                 // 获取元数据
-                let grpc_recv_us_opt = match &event {
-                    DexEvent::PumpSwapBuy(e) => Some(e.metadata.grpc_recv_us),
-                    DexEvent::PumpSwapSell(e) => Some(e.metadata.grpc_recv_us),
-                    DexEvent::PumpSwapCreatePool(e) => Some(e.metadata.grpc_recv_us),
+                let metadata_opt = match &event {
+                    DexEvent::PumpSwapBuy(e) => {
+                        Some((e.metadata.grpc_recv_us, e.metadata.block_time_us))
+                    }
+                    DexEvent::PumpSwapSell(e) => {
+                        Some((e.metadata.grpc_recv_us, e.metadata.block_time_us))
+                    }
+                    DexEvent::PumpSwapCreatePool(e) => {
+                        Some((e.metadata.grpc_recv_us, e.metadata.block_time_us))
+                    }
                     _ => None,
                 };
 
-                if let Some(grpc_recv_us) = grpc_recv_us_opt {
+                if let Some((grpc_recv_us, block_time_us)) = metadata_opt {
                     let latency_us = (queue_recv_us - grpc_recv_us) as u64;
 
                     // 更新统计
@@ -180,12 +193,22 @@ async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
 
-                    // 打印完整的时间指标和事件数据
+                    // Calculate chain latency (from block time to gRPC receive time)
+                    let chain_latency_us = grpc_recv_us.saturating_sub(block_time_us);
+                    let chain_latency_ms = chain_latency_us as f64 / 1000.0;
+
+                    // Print full timing metrics and event data
                     println!("\n================================================");
-                    println!("gRPC接收时间: {} μs", grpc_recv_us);
-                    println!("事件接收时间: {} μs", queue_recv_us);
-                    println!("延迟时间: {} μs", latency_us);
-                    println!("队列长度: {}", queue.len());
+                    println!("Block Time:     {} μs", block_time_us);
+                    println!("gRPC Recv Time: {} μs", grpc_recv_us);
+                    println!("Event Recv Time: {} μs", queue_recv_us);
+                    println!("------------------------------------------------");
+                    println!(
+                        "Chain Latency:  {} μs ({:.3} ms)",
+                        chain_latency_us, chain_latency_ms
+                    );
+                    println!("Queue Latency:  {} μs", latency_us);
+                    println!("Queue Length:   {}", queue.len());
                     println!("================================================");
                     println!("{:?}", event);
                     println!();
