@@ -1,6 +1,6 @@
+use crate::grpc::types::Protocol;
 use solana_sdk::pubkey;
 use solana_sdk::pubkey::Pubkey;
-use crate::grpc::types::Protocol;
 use std::collections::HashMap;
 
 // Program IDs for supported DEX protocols (string format)
@@ -27,6 +27,11 @@ pub const ORCA_WHIRLPOOL_PROGRAM: Pubkey = pubkey!("whirLbMiicVdio4qvUfM5KAg6Ct8
 pub const METEORA_POOLS_PROGRAM: Pubkey = pubkey!("Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB");
 pub const METEORA_DAMM_V2_PROGRAM: Pubkey = pubkey!("cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG");
 pub const METEORA_DLMM_PROGRAM: Pubkey = pubkey!("LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo");
+
+// Pump.fun Migration Program
+pub const PUMPFUN_MIGRATION_PROGRAM_ID: &str = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg";
+pub const PUMPFUN_MIGRATION_PROGRAM: Pubkey =
+    pubkey!("39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg");
 
 lazy_static::lazy_static! {
     pub static ref PROTOCOL_PROGRAM_IDS: HashMap<Protocol, Vec<&'static str>> = {
