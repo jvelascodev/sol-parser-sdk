@@ -320,6 +320,8 @@ fn parse_buy_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };
@@ -408,6 +410,8 @@ fn parse_sell_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };
@@ -489,6 +493,8 @@ fn parse_create_pool_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };
@@ -558,6 +564,8 @@ fn parse_add_liquidity_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };
@@ -622,6 +630,8 @@ fn parse_remove_liquidity_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };

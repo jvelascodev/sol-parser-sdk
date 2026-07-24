@@ -16,7 +16,7 @@ pub mod program_ids;
 pub mod types;
 
 // 重新导出主要API
-pub use client::YellowstoneGrpc;
+pub use client::{SubscriptionHealth, YellowstoneGrpc};
 pub use types::{
     AccountFilter, ClientConfig, EventType as StreamingEventType, EventTypeFilter, OrderMode,
     Protocol, SlotFilter, TransactionFilter,

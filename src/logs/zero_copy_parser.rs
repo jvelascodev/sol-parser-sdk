@@ -132,6 +132,8 @@ pub fn parse_pumpfun_trade(
         signature,
         slot,
         tx_index,
+        event_ordinal: 0,
+        stream_epoch: 0,
         block_time_us: block_time_us.unwrap_or(0),
         grpc_recv_us,
     };

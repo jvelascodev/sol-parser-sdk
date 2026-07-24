@@ -224,6 +224,8 @@ mod tests {
             signature: Signature::default(),
             slot: 100,
             tx_index: 1,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: 1000,
             grpc_recv_us: 2000,
         };
@@ -269,6 +271,8 @@ mod tests {
             signature: Signature::default(),
             slot: 100,
             tx_index: 1,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: 1000,
             grpc_recv_us: 2000,
         };

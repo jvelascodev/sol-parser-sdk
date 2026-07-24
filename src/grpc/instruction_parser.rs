@@ -13,6 +13,14 @@ use solana_sdk::signature::Signature;
 use std::collections::HashMap;
 use yellowstone_grpc_proto::prelude::{Transaction, TransactionStatusMeta};
 
+const INSTRUCTION_EVENT_ORDINAL_FLAG: u64 = 1 << 63;
+
+fn instruction_event_ordinal(outer_index: usize, inner_index: Option<usize>) -> u64 {
+    INSTRUCTION_EVENT_ORDINAL_FLAG
+        | ((outer_index as u64) << 32)
+        | inner_index.map_or(0, |index| index as u64 + 1)
+}
+
 /// 解析交易中的所有指令事件（instruction + inner instruction）
 ///
 /// # 解析流程
@@ -69,7 +77,7 @@ pub fn parse_instructions_enhanced(
         invokes.entry(pid).or_default().push((i as i32, -1));
 
         // 解析主指令（8字节 discriminator）
-        if let Some(event) = parse_outer_instruction(
+        if let Some(mut event) = parse_outer_instruction(
             &ix.data,
             &pid,
             sig,
@@ -81,6 +89,7 @@ pub fn parse_instructions_enhanced(
             &get_key,
             filter,
         ) {
+            event.set_event_ordinal(instruction_event_ordinal(i, None));
             result.push((i, None, event)); // (outer_idx, inner_idx, event)
         }
     }
@@ -96,7 +105,7 @@ pub fn parse_instructions_enhanced(
             invokes.entry(pid).or_default().push((outer_idx as i32, j as i32));
 
             // 解析 inner instruction（16字节 discriminator）
-            if let Some(event) = parse_inner_instruction(
+            if let Some(mut event) = parse_inner_instruction(
                 &inner_ix.data,
                 &pid,
                 sig,
@@ -106,6 +115,7 @@ pub fn parse_instructions_enhanced(
                 grpc_us,
                 filter,
             ) {
+                event.set_event_ordinal(instruction_event_ordinal(outer_idx, Some(j)));
                 result.push((outer_idx, Some(j), event)); // (outer_idx, Some(inner_idx), event)
             }
         }
@@ -204,6 +214,8 @@ fn parse_inner_instruction(
         signature: sig,
         slot,
         tx_index: tx_idx,
+        event_ordinal: 0,
+        stream_epoch: 0,
         block_time_us: block_us.unwrap_or(0),
         grpc_recv_us: grpc_us,
     };
@@ -365,6 +377,17 @@ mod tests {
     }
 
     #[test]
+    fn instruction_event_ordinals_encode_source_position() {
+        let outer = instruction_event_ordinal(3, None);
+        let first_inner = instruction_event_ordinal(3, Some(0));
+        let second_inner = instruction_event_ordinal(3, Some(1));
+
+        assert_eq!(outer, INSTRUCTION_EVENT_ORDINAL_FLAG | (3 << 32));
+        assert_eq!(first_inner, outer | 1);
+        assert_eq!(second_inner, outer | 2);
+    }
+
+    #[test]
     fn test_merge_instruction_events() {
         use solana_sdk::signature::Signature;
 
@@ -372,6 +395,8 @@ mod tests {
             signature: Signature::default(),
             slot: 100,
             tx_index: 1,
+            event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: 1000,
             grpc_recv_us: 2000,
         };
