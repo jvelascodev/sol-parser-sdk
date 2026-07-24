@@ -343,7 +343,12 @@ impl YellowstoneGrpc {
                     changed.map_err(|_| "Subscription filter channel closed".to_string())?;
                 }
                 result = client.subscribe_with_request(Some(request)) => {
-                    break result.map_err(|e| e.to_string())?;
+                    let subscription = result.map_err(|e| e.to_string())?;
+                    if consume_establishment_filter_change(filters_rx)? {
+                        drop(subscription);
+                        continue;
+                    }
+                    break subscription;
                 }
             }
         };
@@ -763,6 +768,16 @@ fn build_subscribe_request(
     }
 }
 
+fn consume_establishment_filter_change(
+    filters_rx: &mut watch::Receiver<SubscriptionFilters>,
+) -> Result<bool, String> {
+    if filters_rx.has_changed().map_err(|_| "Subscription filter channel closed".to_string())? {
+        filters_rx.borrow_and_update();
+        return Ok(true);
+    }
+    Ok(false)
+}
+
 // ==================== 交易解析 ====================
 
 #[inline]
@@ -1000,6 +1015,40 @@ mod tests {
         let filters = receiver.borrow_and_update().clone();
         assert_eq!(filters.transaction[0].account_required, ["mint-latest"]);
         assert_eq!(filters.account[0].account, ["pool-latest"]);
+    }
+
+    #[tokio::test]
+    async fn establishment_retries_when_filters_change_while_subscribe_is_pending() {
+        let grpc = client();
+        grpc.update_subscription(
+            vec![transaction_filter("mint-old")],
+            vec![account_filter("pool-old")],
+        )
+        .await
+        .unwrap();
+        let mut receiver = grpc.filters_tx.subscribe();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (finish_tx, finish_rx) = tokio::sync::oneshot::channel();
+        let subscribe = tokio::spawn(async move {
+            started_tx.send(()).unwrap();
+            finish_rx.await.unwrap();
+        });
+
+        started_rx.await.unwrap();
+        grpc.update_subscription(
+            vec![transaction_filter("mint-latest")],
+            vec![account_filter("pool-latest")],
+        )
+        .await
+        .unwrap();
+        finish_tx.send(()).unwrap();
+        subscribe.await.unwrap();
+
+        assert!(consume_establishment_filter_change(&mut receiver).unwrap());
+        let filters = receiver.borrow().clone();
+        assert_eq!(filters.transaction[0].account_required, ["mint-latest"]);
+        assert_eq!(filters.account[0].account, ["pool-latest"]);
+        assert!(!consume_establishment_filter_change(&mut receiver).unwrap());
     }
 
     #[tokio::test]
