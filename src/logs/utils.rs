@@ -163,6 +163,7 @@ pub fn create_metadata_simple(
         signature,
         slot,
         tx_index,
+        event_ordinal: 0,
         block_time_us: block_time_us.unwrap_or(0),
         grpc_recv_us,
     }
@@ -180,6 +181,7 @@ pub fn create_metadata_default(
         signature,
         slot,
         tx_index,
+        event_ordinal: 0,
         block_time_us: block_time_us.unwrap_or(0),
         grpc_recv_us: current_time,
     }

@@ -13,6 +13,8 @@ pub struct EventMetadata {
     pub signature: Signature,
     pub slot: u64,
     pub tx_index: u64, // 交易在slot中的索引，参考solana-streamer
+    #[serde(default)]
+    pub event_ordinal: u64,
     pub block_time_us: i64,
     pub grpc_recv_us: i64,
 }
@@ -1915,6 +1917,7 @@ static DEFAULT_METADATA: Lazy<EventMetadata> = Lazy::new(|| EventMetadata {
     signature: Signature::from([0u8; 64]),
     slot: 0,
     tx_index: 0,
+    event_ordinal: 0,
     block_time_us: 0,
     grpc_recv_us: 0,
 });
@@ -2011,5 +2014,122 @@ impl DexEvent {
             // 错误事件 - 返回默认元数据
             DexEvent::Error(_) => &DEFAULT_METADATA,
         }
+    }
+
+    pub(crate) fn set_event_ordinal(&mut self, event_ordinal: u64) {
+        let metadata = match self {
+            // PumpFun 事件
+            DexEvent::PumpFunCreate(e) => &mut e.metadata,
+            DexEvent::PumpFunTrade(e) => &mut e.metadata,
+            DexEvent::PumpFunBuy(e) => &mut e.metadata,
+            DexEvent::PumpFunSell(e) => &mut e.metadata,
+            DexEvent::PumpFunBuyExactSolIn(e) => &mut e.metadata,
+            DexEvent::PumpFunMigrate(e) => &mut e.metadata,
+
+            // PumpSwap 事件
+            DexEvent::PumpSwapTrade(e) => &mut e.metadata,
+            DexEvent::PumpSwapBuy(e) => &mut e.metadata,
+            DexEvent::PumpSwapSell(e) => &mut e.metadata,
+            DexEvent::PumpSwapCreatePool(e) => &mut e.metadata,
+            DexEvent::PumpSwapLiquidityAdded(e) => &mut e.metadata,
+            DexEvent::PumpSwapLiquidityRemoved(e) => &mut e.metadata,
+
+            // Meteora DAMM V2 事件
+            DexEvent::MeteoraDammV2Swap(e) => &mut e.metadata,
+            DexEvent::MeteoraDammV2CreatePosition(e) => &mut e.metadata,
+            DexEvent::MeteoraDammV2ClosePosition(e) => &mut e.metadata,
+            DexEvent::MeteoraDammV2AddLiquidity(e) => &mut e.metadata,
+            DexEvent::MeteoraDammV2RemoveLiquidity(e) => &mut e.metadata,
+
+            // Bonk 事件
+            DexEvent::BonkTrade(e) => &mut e.metadata,
+            DexEvent::BonkPoolCreate(e) => &mut e.metadata,
+            DexEvent::BonkMigrateAmm(e) => &mut e.metadata,
+
+            // Raydium CLMM 事件
+            DexEvent::RaydiumClmmSwap(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmCreatePool(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmOpenPosition(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmOpenPositionWithTokenExtNft(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmClosePosition(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmIncreaseLiquidity(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmDecreaseLiquidity(e) => &mut e.metadata,
+            DexEvent::RaydiumClmmCollectFee(e) => &mut e.metadata,
+
+            // Raydium CPMM 事件
+            DexEvent::RaydiumCpmmSwap(e) => &mut e.metadata,
+            DexEvent::RaydiumCpmmDeposit(e) => &mut e.metadata,
+            DexEvent::RaydiumCpmmWithdraw(e) => &mut e.metadata,
+            DexEvent::RaydiumCpmmInitialize(e) => &mut e.metadata,
+
+            // Raydium AMM V4 事件
+            DexEvent::RaydiumAmmV4Swap(e) => &mut e.metadata,
+            DexEvent::RaydiumAmmV4Deposit(e) => &mut e.metadata,
+            DexEvent::RaydiumAmmV4Initialize2(e) => &mut e.metadata,
+            DexEvent::RaydiumAmmV4Withdraw(e) => &mut e.metadata,
+            DexEvent::RaydiumAmmV4WithdrawPnl(e) => &mut e.metadata,
+
+            // Orca Whirlpool 事件
+            DexEvent::OrcaWhirlpoolSwap(e) => &mut e.metadata,
+            DexEvent::OrcaWhirlpoolLiquidityIncreased(e) => &mut e.metadata,
+            DexEvent::OrcaWhirlpoolLiquidityDecreased(e) => &mut e.metadata,
+            DexEvent::OrcaWhirlpoolPoolInitialized(e) => &mut e.metadata,
+
+            // Meteora Pools 事件
+            DexEvent::MeteoraPoolsSwap(e) => &mut e.metadata,
+            DexEvent::MeteoraPoolsAddLiquidity(e) => &mut e.metadata,
+            DexEvent::MeteoraPoolsRemoveLiquidity(e) => &mut e.metadata,
+            DexEvent::MeteoraPoolsBootstrapLiquidity(e) => &mut e.metadata,
+            DexEvent::MeteoraPoolsPoolCreated(e) => &mut e.metadata,
+            DexEvent::MeteoraPoolsSetPoolFees(e) => &mut e.metadata,
+
+            // Meteora DLMM 事件
+            DexEvent::MeteoraDlmmSwap(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmAddLiquidity(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmRemoveLiquidity(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmInitializePool(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmInitializeBinArray(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmCreatePosition(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmClosePosition(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmClaimFee(e) => &mut e.metadata,
+
+            // 账户事件
+            DexEvent::TokenInfo(e) => &mut e.metadata,
+            DexEvent::TokenAccount(e) => &mut e.metadata,
+            DexEvent::NonceAccount(e) => &mut e.metadata,
+            DexEvent::PumpSwapGlobalConfigAccount(e) => &mut e.metadata,
+            DexEvent::PumpSwapPoolAccount(e) => &mut e.metadata,
+
+            // 区块元数据事件
+            DexEvent::BlockMeta(e) => &mut e.metadata,
+
+            // 错误事件 - 返回默认元数据
+            DexEvent::Error(_) => return,
+        };
+        metadata.event_ordinal = event_ordinal;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_metadata_defaults_event_ordinal() {
+        let mut json = serde_json::to_value(EventMetadata::default()).unwrap();
+        json.as_object_mut().unwrap().remove("event_ordinal");
+
+        let metadata: EventMetadata = serde_json::from_value(json).unwrap();
+
+        assert_eq!(metadata.event_ordinal, 0);
+    }
+
+    #[test]
+    fn event_ordinal_is_exposed_through_metadata() {
+        let mut event = DexEvent::PumpFunTrade(PumpFunTradeEvent::default());
+
+        event.set_event_ordinal(17);
+
+        assert_eq!(event.metadata().event_ordinal, 17);
     }
 }

@@ -327,6 +327,7 @@ pub fn parse_log_optimized(
         signature,
         slot,
         tx_index,
+        event_ordinal: 0,
         block_time_us: block_time_us.unwrap_or(0),
         grpc_recv_us,
     };

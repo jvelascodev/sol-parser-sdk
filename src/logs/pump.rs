@@ -303,6 +303,7 @@ fn parse_create_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };
@@ -462,6 +463,7 @@ fn parse_trade_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };
@@ -553,6 +555,7 @@ fn parse_migrate_event_optimized(
             signature,
             slot,
             tx_index,
+            event_ordinal: 0,
             block_time_us: block_time_us.unwrap_or(0),
             grpc_recv_us,
         };

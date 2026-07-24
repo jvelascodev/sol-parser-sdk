@@ -687,6 +687,7 @@ impl YellowstoneGrpc {
             signature: Default::default(),
             slot: acc.slot,
             tx_index: 0,
+            event_ordinal: 0,
             block_time_us: block_us,
             grpc_recv_us: grpc_us,
         };
@@ -842,7 +843,7 @@ fn parse_logs(
     let mut invokes: HashMap<&str, Vec<(i32, i32)>> = HashMap::with_capacity(8);
     let mut result = Vec::with_capacity(4);
 
-    for log in logs {
+    for (log_index, log) in logs.iter().enumerate() {
         if let Some((pid, depth)) = crate::logs::optimized_matcher::parse_invoke_info(log) {
             if depth == 1 {
                 inner_idx = -1;
@@ -860,6 +861,7 @@ fn parse_logs(
         if let Some(mut e) =
             crate::logs::parse_log(log, sig, slot, tx_idx, block_us, grpc_us, filter, has_create)
         {
+            e.set_event_ordinal(log_index as u64);
             crate::core::account_dispatcher::fill_accounts_from_transaction_data(
                 &mut e,
                 meta,
