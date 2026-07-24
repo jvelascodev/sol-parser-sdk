@@ -18,6 +18,7 @@ use log::error;
 use memchr::memmem;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::{
     atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
     Arc, Mutex,
@@ -131,12 +132,11 @@ impl YellowstoneGrpc {
         account_filters: Vec<AccountFilter>,
         event_type_filter: Option<EventTypeFilter>,
     ) -> Result<Arc<ArrayQueue<DexEvent>>, Box<dyn std::error::Error>> {
-        let subscription_lease = self.claim_subscription(transaction_filters, account_filters)?;
+        let (subscription_lease, mut filters_rx, mut stop_rx) =
+            self.prepare_subscription(transaction_filters, account_filters)?;
         let queue = Arc::new(ArrayQueue::new(100_000));
         let queue_clone = Arc::clone(&queue);
         let self_clone = self.clone();
-        let mut filters_rx = self.filters_tx.subscribe();
-        let mut stop_rx = self.stop_tx.subscribe();
 
         tokio::spawn(async move {
             let _subscription_lease = subscription_lease;
@@ -244,6 +244,20 @@ impl YellowstoneGrpc {
         Ok(SubscriptionLease(Arc::clone(&self.subscription_active)))
     }
 
+    fn prepare_subscription(
+        &self,
+        transaction_filters: Vec<TransactionFilter>,
+        account_filters: Vec<AccountFilter>,
+    ) -> Result<
+        (SubscriptionLease, watch::Receiver<SubscriptionFilters>, watch::Receiver<()>),
+        Box<dyn std::error::Error>,
+    > {
+        let filters_rx = self.filters_tx.subscribe();
+        let stop_rx = self.stop_tx.subscribe();
+        let lease = self.claim_subscription(transaction_filters, account_filters)?;
+        Ok((lease, filters_rx, stop_rx))
+    }
+
     fn record_connected(&self) {
         self.health.stream_epoch.fetch_add(1, Ordering::AcqRel);
         self.health.connected.store(true, Ordering::Release);
@@ -287,8 +301,9 @@ impl YellowstoneGrpc {
     }
 
     #[inline]
-    fn push_to_queue<T>(&self, queue: &ArrayQueue<T>, value: T) {
-        if queue.push(value).is_err() {
+    fn push_to_queue(&self, queue: &ArrayQueue<DexEvent>, mut event: DexEvent) {
+        event.set_stream_epoch(self.health.stream_epoch.load(Ordering::Acquire));
+        if queue.push(event).is_err() {
             self.health.input_queue_drop_count.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -401,7 +416,18 @@ impl YellowstoneGrpc {
                         ping: Some(SubscribeRequestPing { id: 1 }),
                         ..Default::default()
                     };
-                    if let Err(e) = subscribe_tx.send(ping_request).await {
+                    let Some(send_result) =
+                        run_until_stopped(stop_rx, subscribe_tx.send(ping_request)).await
+                    else {
+                        self.flush_pending(
+                            order_mode,
+                            &mut slot_buffer,
+                            &mut micro_batch,
+                            queue,
+                        );
+                        return Ok(StreamExit::Stopped);
+                    };
+                    if let Err(e) = send_result {
                         self.flush_pending(
                             order_mode,
                             &mut slot_buffer,
@@ -476,9 +502,20 @@ impl YellowstoneGrpc {
                         return Err("Subscription filter channel closed".to_string());
                     }
                     let filters = filters_rx.borrow_and_update().clone();
-                    if let Err(e) = subscribe_tx
-                        .send(build_subscribe_request(&filters.transaction, &filters.account))
-                        .await {
+                    let request =
+                        build_subscribe_request(&filters.transaction, &filters.account);
+                    let Some(send_result) =
+                        run_until_stopped(stop_rx, subscribe_tx.send(request)).await
+                    else {
+                        self.flush_pending(
+                            order_mode,
+                            &mut slot_buffer,
+                            &mut micro_batch,
+                            queue,
+                        );
+                        return Ok(StreamExit::Stopped);
+                    };
+                    if let Err(e) = send_result {
                         self.flush_pending(
                             order_mode,
                             &mut slot_buffer,
@@ -691,6 +728,7 @@ impl YellowstoneGrpc {
             slot: acc.slot,
             tx_index: 0,
             event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: block_us,
             grpc_recv_us: grpc_us,
         };
@@ -776,6 +814,17 @@ fn consume_establishment_filter_change(
         return Ok(true);
     }
     Ok(false)
+}
+
+async fn run_until_stopped<T>(
+    stop_rx: &mut watch::Receiver<()>,
+    operation: impl Future<Output = T>,
+) -> Option<T> {
+    tokio::select! {
+        biased;
+        _ = stop_rx.changed() => None,
+        result = operation => Some(result),
+    }
 }
 
 // ==================== 交易解析 ====================
@@ -1099,8 +1148,8 @@ mod tests {
     #[tokio::test]
     async fn subscription_can_restart_only_after_stopped_task_exits() {
         let grpc = client();
-        let lease = grpc.claim_subscription(Vec::new(), Vec::new()).unwrap();
-        let mut stop_rx = grpc.stop_tx.subscribe();
+        let (lease, _filters_rx, mut stop_rx) =
+            grpc.prepare_subscription(Vec::new(), Vec::new()).unwrap();
         let (allow_exit_tx, allow_exit_rx) = tokio::sync::oneshot::channel();
         let task = tokio::spawn(async move {
             let _lease = lease;
@@ -1117,6 +1166,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stop_after_preparing_subscription_is_observed_before_worker_start() {
+        let grpc = client();
+        let (_lease, _filters_rx, mut stop_rx) =
+            grpc.prepare_subscription(Vec::new(), Vec::new()).unwrap();
+
+        grpc.stop().await;
+
+        tokio::time::timeout(Duration::from_millis(100), stop_rx.changed()).await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn stop_cancels_a_pending_outbound_operation() {
+        let grpc = client();
+        let mut stop_rx = grpc.stop_tx.subscribe();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let stopper = grpc.clone();
+        let stop_task = tokio::spawn(async move {
+            started_rx.await.unwrap();
+            stopper.stop().await;
+        });
+        let operation = async move {
+            started_tx.send(()).unwrap();
+            std::future::pending::<()>().await;
+        };
+
+        assert!(run_until_stopped(&mut stop_rx, operation).await.is_none());
+        stop_task.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn health_snapshot_tracks_transport_and_queue_state_without_secrets() {
         let mut grpc = client();
         grpc.token = Some("top-secret".to_string());
@@ -1128,8 +1207,8 @@ mod tests {
         let error =
             grpc.record_disconnected("failed https://example.invalid with token top-secret");
         let queue = ArrayQueue::new(1);
-        grpc.push_to_queue(&queue, 1);
-        grpc.push_to_queue(&queue, 2);
+        grpc.push_to_queue(&queue, buffered_event(42, 0));
+        grpc.push_to_queue(&queue, buffered_event(42, 1));
 
         let health = grpc.subscription_health();
         assert!(!health.connected);
@@ -1150,6 +1229,31 @@ mod tests {
         let stopped = grpc.subscription_health();
         assert!(!stopped.connected);
         assert_eq!(stopped.stream_epoch, 2);
+    }
+
+    #[test]
+    fn enqueue_stamps_events_with_their_stream_epoch_across_reconnect() {
+        let grpc = client();
+        let queue = ArrayQueue::new(1);
+        grpc.record_connected();
+        let mut old_stream_event = buffered_event(42, 0);
+        old_stream_event.set_event_ordinal(7);
+
+        grpc.push_to_queue(&queue, old_stream_event);
+        let old_stream_event = queue.pop().unwrap();
+        assert_eq!(old_stream_event.metadata().stream_epoch, 1);
+        assert_eq!(old_stream_event.metadata().event_ordinal, 7);
+
+        grpc.record_disconnected("reconnect");
+        grpc.record_reconnect();
+        grpc.record_connected();
+        let mut new_stream_event = buffered_event(43, 0);
+        new_stream_event.set_event_ordinal(9);
+
+        grpc.push_to_queue(&queue, new_stream_event);
+        let new_stream_event = queue.pop().unwrap();
+        assert_eq!(new_stream_event.metadata().stream_epoch, 2);
+        assert_eq!(new_stream_event.metadata().event_ordinal, 9);
     }
 
     #[test]

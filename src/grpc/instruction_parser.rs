@@ -215,6 +215,7 @@ fn parse_inner_instruction(
         slot,
         tx_index: tx_idx,
         event_ordinal: 0,
+        stream_epoch: 0,
         block_time_us: block_us.unwrap_or(0),
         grpc_recv_us: grpc_us,
     };
@@ -395,6 +396,7 @@ mod tests {
             slot: 100,
             tx_index: 1,
             event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: 1000,
             grpc_recv_us: 2000,
         };

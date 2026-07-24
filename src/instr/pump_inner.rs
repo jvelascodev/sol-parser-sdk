@@ -550,6 +550,7 @@ mod tests {
             slot: 0,
             tx_index: 0,
             event_ordinal: 0,
+            stream_epoch: 0,
             block_time_us: 0,
             grpc_recv_us: 0,
         };

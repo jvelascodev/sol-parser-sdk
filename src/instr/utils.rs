@@ -17,6 +17,7 @@ pub fn create_metadata(
         slot,
         tx_index,
         event_ordinal: 0,
+        stream_epoch: 0,
         block_time_us,
         grpc_recv_us,
     }
@@ -38,6 +39,7 @@ pub fn create_metadata_simple(
         slot,
         tx_index,
         event_ordinal: 0,
+        stream_epoch: 0,
         block_time_us: block_time_us.unwrap_or(0),
         grpc_recv_us: current_time,
     }

@@ -15,6 +15,8 @@ pub struct EventMetadata {
     pub tx_index: u64, // 交易在slot中的索引，参考solana-streamer
     #[serde(default)]
     pub event_ordinal: u64,
+    #[serde(default)]
+    pub stream_epoch: u64,
     pub block_time_us: i64,
     pub grpc_recv_us: i64,
 }
@@ -1918,6 +1920,7 @@ static DEFAULT_METADATA: Lazy<EventMetadata> = Lazy::new(|| EventMetadata {
     slot: 0,
     tx_index: 0,
     event_ordinal: 0,
+    stream_epoch: 0,
     block_time_us: 0,
     grpc_recv_us: 0,
 });
@@ -2016,7 +2019,7 @@ impl DexEvent {
         }
     }
 
-    pub(crate) fn set_event_ordinal(&mut self, event_ordinal: u64) {
+    fn metadata_mut(&mut self) -> Option<&mut EventMetadata> {
         let metadata = match self {
             // PumpFun 事件
             DexEvent::PumpFunCreate(e) => &mut e.metadata,
@@ -2104,9 +2107,21 @@ impl DexEvent {
             DexEvent::BlockMeta(e) => &mut e.metadata,
 
             // 错误事件 - 返回默认元数据
-            DexEvent::Error(_) => return,
+            DexEvent::Error(_) => return None,
         };
-        metadata.event_ordinal = event_ordinal;
+        Some(metadata)
+    }
+
+    pub(crate) fn set_event_ordinal(&mut self, event_ordinal: u64) {
+        if let Some(metadata) = self.metadata_mut() {
+            metadata.event_ordinal = event_ordinal;
+        }
+    }
+
+    pub(crate) fn set_stream_epoch(&mut self, stream_epoch: u64) {
+        if let Some(metadata) = self.metadata_mut() {
+            metadata.stream_epoch = stream_epoch;
+        }
     }
 }
 
@@ -2115,13 +2130,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn legacy_metadata_defaults_event_ordinal() {
+    fn legacy_metadata_defaults_new_identity_fields() {
         let mut json = serde_json::to_value(EventMetadata::default()).unwrap();
         json.as_object_mut().unwrap().remove("event_ordinal");
+        json.as_object_mut().unwrap().remove("stream_epoch");
 
         let metadata: EventMetadata = serde_json::from_value(json).unwrap();
 
         assert_eq!(metadata.event_ordinal, 0);
+        assert_eq!(metadata.stream_epoch, 0);
     }
 
     #[test]
@@ -2129,7 +2146,9 @@ mod tests {
         let mut event = DexEvent::PumpFunTrade(PumpFunTradeEvent::default());
 
         event.set_event_ordinal(17);
+        event.set_stream_epoch(3);
 
         assert_eq!(event.metadata().event_ordinal, 17);
+        assert_eq!(event.metadata().stream_epoch, 3);
     }
 }
