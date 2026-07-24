@@ -148,15 +148,8 @@ impl YellowstoneGrpc {
                 } else {
                     self_clone.record_reconnect();
                 }
-                let filters = filters_rx.borrow_and_update().clone();
                 let result = self_clone
-                    .stream_events(
-                        &filters,
-                        &event_type_filter,
-                        &queue_clone,
-                        &mut filters_rx,
-                        &mut stop_rx,
-                    )
+                    .stream_events(&event_type_filter, &queue_clone, &mut filters_rx, &mut stop_rx)
                     .await;
 
                 match result {
@@ -208,7 +201,11 @@ impl YellowstoneGrpc {
             self.health.last_error.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
         let last_receive_timestamp_us =
             self.health.last_receive_timestamp_us.load(Ordering::Acquire);
-        let last_receive_slot = self.health.last_receive_slot.load(Ordering::Acquire);
+        let last_receive_slot = self
+            .health
+            .has_received_slot
+            .load(Ordering::Acquire)
+            .then(|| self.health.last_receive_slot.load(Ordering::Acquire));
 
         SubscriptionHealth {
             connected: self.health.connected.load(Ordering::Acquire),
@@ -217,11 +214,7 @@ impl YellowstoneGrpc {
             last_error,
             last_receive_timestamp_us: (last_receive_timestamp_us != 0)
                 .then_some(last_receive_timestamp_us),
-            last_receive_slot: self
-                .health
-                .has_received_slot
-                .load(Ordering::Acquire)
-                .then_some(last_receive_slot),
+            last_receive_slot,
             input_queue_drop_count: self.health.input_queue_drop_count.load(Ordering::Acquire),
         }
     }
@@ -302,7 +295,6 @@ impl YellowstoneGrpc {
 
     async fn stream_events(
         &self,
-        filters: &SubscriptionFilters,
         event_filter: &Option<EventTypeFilter>,
         queue: &Arc<ArrayQueue<DexEvent>>,
         filters_rx: &mut watch::Receiver<SubscriptionFilters>,
@@ -341,12 +333,18 @@ impl YellowstoneGrpc {
             _ = stop_rx.changed() => return Ok(StreamExit::Stopped),
             result = builder.connect() => result.map_err(|e| e.to_string())?,
         };
-        let request = build_subscribe_request(&filters.transaction, &filters.account);
 
-        let (mut subscribe_tx, mut stream) = tokio::select! {
-            _ = stop_rx.changed() => return Ok(StreamExit::Stopped),
-            result = client.subscribe_with_request(Some(request)) => {
-                result.map_err(|e| e.to_string())?
+        let (mut subscribe_tx, mut stream) = loop {
+            let filters = filters_rx.borrow_and_update().clone();
+            let request = build_subscribe_request(&filters.transaction, &filters.account);
+            tokio::select! {
+                _ = stop_rx.changed() => return Ok(StreamExit::Stopped),
+                changed = filters_rx.changed() => {
+                    changed.map_err(|_| "Subscription filter channel closed".to_string())?;
+                }
+                result = client.subscribe_with_request(Some(request)) => {
+                    break result.map_err(|e| e.to_string())?;
+                }
             }
         };
 
@@ -982,6 +980,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn connection_setup_reads_latest_filters_after_updates() {
+        let grpc = client();
+        let mut receiver = grpc.filters_tx.subscribe();
+
+        grpc.update_subscription(
+            vec![transaction_filter("mint-old")],
+            vec![account_filter("pool-old")],
+        )
+        .await
+        .unwrap();
+        grpc.update_subscription(
+            vec![transaction_filter("mint-latest")],
+            vec![account_filter("pool-latest")],
+        )
+        .await
+        .unwrap();
+
+        let filters = receiver.borrow_and_update().clone();
+        assert_eq!(filters.transaction[0].account_required, ["mint-latest"]);
+        assert_eq!(filters.account[0].account, ["pool-latest"]);
+    }
+
+    #[tokio::test]
     async fn reconnect_receiver_starts_with_latest_filters() {
         let grpc = client();
         grpc.update_subscription(
@@ -1071,6 +1092,9 @@ mod tests {
         assert_eq!(health.last_error.as_deref(), Some(error.as_str()));
         assert!(!error.contains("example.invalid"));
         assert!(!error.contains("top-secret"));
+
+        grpc.record_receive(123_457, Some(0));
+        assert_eq!(grpc.subscription_health().last_receive_slot, Some(0));
 
         grpc.record_connected();
         grpc.stop().await;
