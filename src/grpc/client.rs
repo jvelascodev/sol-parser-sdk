@@ -19,7 +19,7 @@ use memchr::memmem;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::watch;
 use tokio::time::{Duration, Instant};
 use tonic::transport::ClientTlsConfig;
 use yellowstone_grpc_client::GeyserGrpcClient;
@@ -28,6 +28,12 @@ use yellowstone_grpc_proto::prelude::*;
 static PROGRAM_DATA_FINDER: Lazy<memmem::Finder> =
     Lazy::new(|| memmem::Finder::new(b"Program data: "));
 
+#[derive(Clone, Default)]
+struct SubscriptionFilters {
+    transaction: Vec<TransactionFilter>,
+    account: Vec<AccountFilter>,
+}
+
 // ==================== YellowstoneGrpc 客户端 ====================
 
 #[derive(Clone)]
@@ -35,7 +41,8 @@ pub struct YellowstoneGrpc {
     endpoint: String,
     token: Option<String>,
     config: ClientConfig,
-    control_tx: Arc<Mutex<Option<mpsc::Sender<SubscribeRequest>>>>,
+    filters_tx: watch::Sender<SubscriptionFilters>,
+    stop_tx: watch::Sender<()>,
 }
 
 impl YellowstoneGrpc {
@@ -44,12 +51,9 @@ impl YellowstoneGrpc {
         token: Option<String>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         crate::warmup::warmup_parser();
-        Ok(Self {
-            endpoint,
-            token,
-            config: ClientConfig::default(),
-            control_tx: Arc::new(Mutex::new(None)),
-        })
+        let (filters_tx, _) = watch::channel(SubscriptionFilters::default());
+        let (stop_tx, _) = watch::channel(());
+        Ok(Self { endpoint, token, config: ClientConfig::default(), filters_tx, stop_tx })
     }
 
     pub fn new_with_config(
@@ -58,7 +62,9 @@ impl YellowstoneGrpc {
         config: ClientConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         crate::warmup::warmup_parser();
-        Ok(Self { endpoint, token, config, control_tx: Arc::new(Mutex::new(None)) })
+        let (filters_tx, _) = watch::channel(SubscriptionFilters::default());
+        let (stop_tx, _) = watch::channel(());
+        Ok(Self { endpoint, token, config, filters_tx, stop_tx })
     }
 
     /// 订阅 DEX 事件（自动重连）
@@ -68,26 +74,36 @@ impl YellowstoneGrpc {
         account_filters: Vec<AccountFilter>,
         event_type_filter: Option<EventTypeFilter>,
     ) -> Result<Arc<ArrayQueue<DexEvent>>, Box<dyn std::error::Error>> {
+        self.replace_subscription_filters(transaction_filters, account_filters);
         let queue = Arc::new(ArrayQueue::new(100_000));
         let queue_clone = Arc::clone(&queue);
         let self_clone = self.clone();
+        let mut filters_rx = self.filters_tx.subscribe();
+        let mut stop_rx = self.stop_tx.subscribe();
 
         tokio::spawn(async move {
             let mut delay = 1u64;
             loop {
-                match self_clone
-                    .stream_events(
-                        &transaction_filters,
-                        &account_filters,
+                let filters = filters_rx.borrow_and_update().clone();
+                let result = tokio::select! {
+                    _ = stop_rx.changed() => break,
+                    result = self_clone.stream_events(
+                        &filters,
                         &event_type_filter,
                         &queue_clone,
-                    )
-                    .await
-                {
+                        &mut filters_rx,
+                    ) => result,
+                };
+
+                match result {
                     Ok(_) => delay = 1,
-                    Err(e) => println!("❌ gRPC error: {} - retry in {}s", e, delay),
+                    Err(e) => error!("gRPC stream failed; retrying in {}s: {}", delay, e),
                 }
-                tokio::time::sleep(Duration::from_secs(delay)).await;
+
+                tokio::select! {
+                    _ = stop_rx.changed() => break,
+                    _ = tokio::time::sleep(Duration::from_secs(delay)) => {}
+                }
                 delay = (delay * 2).min(60);
             }
         });
@@ -101,25 +117,33 @@ impl YellowstoneGrpc {
         transaction_filters: Vec<TransactionFilter>,
         account_filters: Vec<AccountFilter>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let sender = self.control_tx.lock().await.as_ref().ok_or("No active subscription")?.clone();
-
-        let request = build_subscribe_request(&transaction_filters, &account_filters);
-        sender.send(request).await.map_err(|e| e.to_string())?;
+        self.replace_subscription_filters(transaction_filters, account_filters);
         Ok(())
     }
 
     pub async fn stop(&self) {
-        println!("🛑 Stopping gRPC subscription...");
+        self.stop_tx.send_replace(());
     }
 
     // ==================== 核心事件流处理 ====================
 
+    fn replace_subscription_filters(
+        &self,
+        transaction_filters: Vec<TransactionFilter>,
+        account_filters: Vec<AccountFilter>,
+    ) {
+        self.filters_tx.send_replace(SubscriptionFilters {
+            transaction: transaction_filters,
+            account: account_filters,
+        });
+    }
+
     async fn stream_events(
         &self,
-        tx_filters: &[TransactionFilter],
-        acc_filters: &[AccountFilter],
+        filters: &SubscriptionFilters,
         event_filter: &Option<EventTypeFilter>,
         queue: &Arc<ArrayQueue<DexEvent>>,
+        filters_rx: &mut watch::Receiver<SubscriptionFilters>,
     ) -> Result<(), String> {
         let _ = rustls::crypto::ring::default_provider().install_default();
 
@@ -151,17 +175,12 @@ impl YellowstoneGrpc {
         }
 
         let mut client = builder.connect().await.map_err(|e| e.to_string())?;
-        let request = build_subscribe_request(tx_filters, acc_filters);
+        let request = build_subscribe_request(&filters.transaction, &filters.account);
 
-        let (subscribe_tx, mut stream) =
+        let (mut subscribe_tx, mut stream) =
             client.subscribe_with_request(Some(request)).await.map_err(|e| e.to_string())?;
 
         self.print_mode_info();
-
-        // 设置控制通道
-        let (control_tx, mut control_rx) = mpsc::channel::<SubscribeRequest>(100);
-        *self.control_tx.lock().await = Some(control_tx);
-        let subscribe_tx = Arc::new(Mutex::new(subscribe_tx));
 
         // 初始化缓冲区
         let mut slot_buffer = SlotBuffer::new();
@@ -199,7 +218,7 @@ impl YellowstoneGrpc {
                         ping: Some(SubscribeRequestPing { id: 1 }),
                         ..Default::default()
                     };
-                    if let Err(e) = subscribe_tx.lock().await.send(ping_request).await {
+                    if let Err(e) = subscribe_tx.send(ping_request).await {
                         error!("Failed to send ping: {}", e);
                     }
                 }
@@ -230,10 +249,13 @@ impl YellowstoneGrpc {
                         }
                     }
                 }
-                Some(req) = control_rx.recv() => {
-                    if let Err(e) = subscribe_tx.lock().await.send(req).await {
-                        return Err(e.to_string());
-                    }
+                changed = filters_rx.changed() => {
+                    changed.map_err(|_| "Subscription filter channel closed".to_string())?;
+                    let filters = filters_rx.borrow_and_update().clone();
+                    subscribe_tx
+                        .send(build_subscribe_request(&filters.transaction, &filters.account))
+                        .await
+                        .map_err(|e| e.to_string())?;
                 }
             }
         }
@@ -647,4 +669,102 @@ fn parse_instructions(
         grpc_us,
         filter,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn client() -> YellowstoneGrpc {
+        let (filters_tx, _) = watch::channel(SubscriptionFilters::default());
+        let (stop_tx, _) = watch::channel(());
+        YellowstoneGrpc {
+            endpoint: "https://example.invalid".to_string(),
+            token: None,
+            config: ClientConfig::default(),
+            filters_tx,
+            stop_tx,
+        }
+    }
+
+    fn transaction_filter(account: &str) -> TransactionFilter {
+        TransactionFilter::new().require_account(account)
+    }
+
+    fn account_filter(account: &str) -> AccountFilter {
+        AccountFilter::new().add_account(account)
+    }
+
+    #[tokio::test]
+    async fn update_subscription_is_atomic_while_disconnected() {
+        let grpc = client();
+
+        grpc.update_subscription(
+            vec![transaction_filter("mint-a")],
+            vec![account_filter("pool-a")],
+        )
+        .await
+        .unwrap();
+
+        let filters = grpc.filters_tx.borrow().clone();
+        assert_eq!(filters.transaction.len(), 1);
+        assert_eq!(filters.transaction[0].account_required, ["mint-a"]);
+        assert_eq!(filters.account.len(), 1);
+        assert_eq!(filters.account[0].account, ["pool-a"]);
+    }
+
+    #[tokio::test]
+    async fn connected_receiver_observes_latest_complete_replacement() {
+        let grpc = client();
+        let mut receiver = grpc.filters_tx.subscribe();
+
+        grpc.update_subscription(
+            vec![transaction_filter("mint-a")],
+            vec![account_filter("pool-a")],
+        )
+        .await
+        .unwrap();
+        grpc.update_subscription(
+            vec![transaction_filter("mint-b")],
+            vec![account_filter("pool-b")],
+        )
+        .await
+        .unwrap();
+
+        tokio::time::timeout(Duration::from_millis(100), receiver.changed())
+            .await
+            .unwrap()
+            .unwrap();
+        let filters = receiver.borrow_and_update().clone();
+        assert_eq!(filters.transaction[0].account_required, ["mint-b"]);
+        assert_eq!(filters.account[0].account, ["pool-b"]);
+    }
+
+    #[tokio::test]
+    async fn reconnect_receiver_starts_with_latest_filters() {
+        let grpc = client();
+        grpc.update_subscription(
+            vec![transaction_filter("mint-latest")],
+            vec![account_filter("pool-latest")],
+        )
+        .await
+        .unwrap();
+
+        let receiver = grpc.filters_tx.subscribe();
+        let filters = receiver.borrow().clone();
+        assert_eq!(filters.transaction[0].account_required, ["mint-latest"]);
+        assert_eq!(filters.account[0].account, ["pool-latest"]);
+    }
+
+    #[tokio::test]
+    async fn stop_notifies_current_reconnect_loop_only() {
+        let grpc = client();
+        let mut current = grpc.stop_tx.subscribe();
+
+        grpc.stop().await;
+
+        tokio::time::timeout(Duration::from_millis(100), current.changed()).await.unwrap().unwrap();
+        let mut future = grpc.stop_tx.subscribe();
+        assert!(tokio::time::timeout(Duration::from_millis(10), future.changed()).await.is_err());
+    }
 }
