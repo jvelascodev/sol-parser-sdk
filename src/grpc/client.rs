@@ -37,6 +37,11 @@ struct SubscriptionFilters {
     account: Vec<AccountFilter>,
 }
 
+enum StreamExit {
+    Stopped,
+    Closed,
+}
+
 struct SubscriptionLease(Arc<AtomicBool>);
 
 impl Drop for SubscriptionLease {
@@ -144,21 +149,22 @@ impl YellowstoneGrpc {
                     self_clone.record_reconnect();
                 }
                 let filters = filters_rx.borrow_and_update().clone();
-                let result = tokio::select! {
-                    _ = stop_rx.changed() => {
-                        self_clone.record_stopped();
-                        break;
-                    },
-                    result = self_clone.stream_events(
+                let result = self_clone
+                    .stream_events(
                         &filters,
                         &event_type_filter,
                         &queue_clone,
                         &mut filters_rx,
-                    ) => result,
-                };
+                        &mut stop_rx,
+                    )
+                    .await;
 
                 match result {
-                    Ok(_) => {
+                    Ok(StreamExit::Stopped) => {
+                        self_clone.record_stopped();
+                        break;
+                    }
+                    Ok(StreamExit::Closed) => {
                         self_clone.record_disconnected("gRPC stream closed");
                         delay = 1;
                     }
@@ -300,7 +306,8 @@ impl YellowstoneGrpc {
         event_filter: &Option<EventTypeFilter>,
         queue: &Arc<ArrayQueue<DexEvent>>,
         filters_rx: &mut watch::Receiver<SubscriptionFilters>,
-    ) -> Result<(), String> {
+        stop_rx: &mut watch::Receiver<()>,
+    ) -> Result<StreamExit, String> {
         let _ = rustls::crypto::ring::default_provider().install_default();
 
         // 构建客户端
@@ -330,11 +337,18 @@ impl YellowstoneGrpc {
                 .map_err(|e| e.to_string())?;
         }
 
-        let mut client = builder.connect().await.map_err(|e| e.to_string())?;
+        let mut client = tokio::select! {
+            _ = stop_rx.changed() => return Ok(StreamExit::Stopped),
+            result = builder.connect() => result.map_err(|e| e.to_string())?,
+        };
         let request = build_subscribe_request(&filters.transaction, &filters.account);
 
-        let (mut subscribe_tx, mut stream) =
-            client.subscribe_with_request(Some(request)).await.map_err(|e| e.to_string())?;
+        let (mut subscribe_tx, mut stream) = tokio::select! {
+            _ = stop_rx.changed() => return Ok(StreamExit::Stopped),
+            result = client.subscribe_with_request(Some(request)) => {
+                result.map_err(|e| e.to_string())?
+            }
+        };
 
         self.record_connected();
         self.print_mode_info();
@@ -368,6 +382,15 @@ impl YellowstoneGrpc {
             );
 
             tokio::select! {
+                _ = stop_rx.changed() => {
+                    self.flush_pending(
+                        order_mode,
+                        &mut slot_buffer,
+                        &mut micro_batch,
+                        queue,
+                    );
+                    return Ok(StreamExit::Stopped);
+                }
                 // Periodic Ping
                 _ = tokio::time::sleep_until((next_ping).into()), if Instant::now() >= next_ping => {
                     next_ping = Instant::now() + ping_interval;
@@ -376,7 +399,12 @@ impl YellowstoneGrpc {
                         ..Default::default()
                     };
                     if let Err(e) = subscribe_tx.send(ping_request).await {
-                        self.flush_on_disconnect(order_mode, &mut slot_buffer, queue);
+                        self.flush_pending(
+                            order_mode,
+                            &mut slot_buffer,
+                            &mut micro_batch,
+                            queue,
+                        );
                         return Err(e.to_string());
                     }
                 }
@@ -415,22 +443,47 @@ impl YellowstoneGrpc {
                             );
                         }
                         Some(Err(e)) => {
-                            self.flush_on_disconnect(order_mode, &mut slot_buffer, queue);
+                            self.flush_pending(
+                                order_mode,
+                                &mut slot_buffer,
+                                &mut micro_batch,
+                                queue,
+                            );
                             return Err(e.to_string());
                         }
                         None => {
-                            self.flush_on_disconnect(order_mode, &mut slot_buffer, queue);
-                            return Ok(());
+                            self.flush_pending(
+                                order_mode,
+                                &mut slot_buffer,
+                                &mut micro_batch,
+                                queue,
+                            );
+                            return Ok(StreamExit::Closed);
                         }
                     }
                 }
                 changed = filters_rx.changed() => {
-                    changed.map_err(|_| "Subscription filter channel closed".to_string())?;
+                    if changed.is_err() {
+                        self.flush_pending(
+                            order_mode,
+                            &mut slot_buffer,
+                            &mut micro_batch,
+                            queue,
+                        );
+                        return Err("Subscription filter channel closed".to_string());
+                    }
                     let filters = filters_rx.borrow_and_update().clone();
-                    subscribe_tx
+                    if let Err(e) = subscribe_tx
                         .send(build_subscribe_request(&filters.transaction, &filters.account))
-                        .await
-                        .map_err(|e| e.to_string())?;
+                        .await {
+                        self.flush_pending(
+                            order_mode,
+                            &mut slot_buffer,
+                            &mut micro_batch,
+                            queue,
+                        );
+                        return Err(e.to_string());
+                    }
                 }
             }
         }
@@ -496,20 +549,21 @@ impl YellowstoneGrpc {
         }
     }
 
-    fn flush_on_disconnect(
+    fn flush_pending(
         &self,
         mode: OrderMode,
-        buffer: &mut SlotBuffer,
+        slot_buffer: &mut SlotBuffer,
+        micro_batch: &mut MicroBatchBuffer,
         queue: &Arc<ArrayQueue<DexEvent>>,
     ) {
-        if matches!(mode, OrderMode::Ordered | OrderMode::StreamingOrdered) {
-            let events = match mode {
-                OrderMode::StreamingOrdered => buffer.flush_streaming_timeout(),
-                _ => buffer.flush_all(),
-            };
-            for e in events {
-                self.push_to_queue(queue, e);
-            }
+        let events = match mode {
+            OrderMode::Ordered => slot_buffer.flush_all(),
+            OrderMode::StreamingOrdered => slot_buffer.flush_streaming_timeout(),
+            OrderMode::MicroBatch => micro_batch.flush(),
+            OrderMode::Unordered => Vec::new(),
+        };
+        for event in events {
+            self.push_to_queue(queue, event);
         }
     }
 
@@ -873,6 +927,13 @@ mod tests {
         AccountFilter::new().add_account(account)
     }
 
+    fn buffered_event(slot: u64, tx_index: u64) -> DexEvent {
+        DexEvent::PumpFunTrade(crate::core::PumpFunTradeEvent {
+            metadata: EventMetadata { slot, tx_index, ..Default::default() },
+            ..Default::default()
+        })
+    }
+
     #[tokio::test]
     async fn update_subscription_is_atomic_while_disconnected() {
         let grpc = client();
@@ -1014,5 +1075,45 @@ mod tests {
         let stopped = grpc.subscription_health();
         assert!(!stopped.connected);
         assert_eq!(stopped.stream_epoch, 2);
+    }
+
+    #[test]
+    fn stop_cleanup_flushes_every_buffered_mode() {
+        let grpc = client();
+
+        for mode in [OrderMode::Ordered, OrderMode::StreamingOrdered] {
+            let queue = Arc::new(ArrayQueue::new(2));
+            let mut slot_buffer = SlotBuffer::new();
+            let mut micro_batch = MicroBatchBuffer::new();
+            slot_buffer.push(42, 0, buffered_event(42, 0));
+
+            grpc.flush_pending(mode, &mut slot_buffer, &mut micro_batch, &queue);
+
+            assert_eq!(queue.len(), 1);
+        }
+
+        let queue = Arc::new(ArrayQueue::new(2));
+        let mut slot_buffer = SlotBuffer::new();
+        let mut micro_batch = MicroBatchBuffer::new();
+        micro_batch.push(42, 0, buffered_event(42, 0), 100, 1_000);
+
+        grpc.flush_pending(OrderMode::MicroBatch, &mut slot_buffer, &mut micro_batch, &queue);
+
+        assert_eq!(queue.len(), 1);
+    }
+
+    #[test]
+    fn disconnect_cleanup_flushes_microbatch_and_counts_queue_overflow() {
+        let grpc = client();
+        let queue = Arc::new(ArrayQueue::new(1));
+        let mut slot_buffer = SlotBuffer::new();
+        let mut micro_batch = MicroBatchBuffer::new();
+        micro_batch.push(42, 0, buffered_event(42, 0), 100, 1_000);
+        micro_batch.push(42, 1, buffered_event(42, 1), 101, 1_000);
+
+        grpc.flush_pending(OrderMode::MicroBatch, &mut slot_buffer, &mut micro_batch, &queue);
+
+        assert_eq!(queue.len(), 1);
+        assert_eq!(grpc.subscription_health().input_queue_drop_count, 1);
     }
 }
