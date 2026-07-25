@@ -23,7 +23,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
     Arc, Mutex,
 };
-use tokio::sync::watch;
+use tokio::sync::{oneshot, watch};
 use tokio::time::{Duration, Instant};
 use tonic::transport::ClientTlsConfig;
 use yellowstone_grpc_client::GeyserGrpcClient;
@@ -36,6 +36,7 @@ static PROGRAM_DATA_FINDER: Lazy<memmem::Finder> =
 struct SubscriptionFilters {
     transaction: Vec<TransactionFilter>,
     account: Vec<AccountFilter>,
+    acknowledgement: Option<String>,
 }
 
 enum StreamExit {
@@ -51,6 +52,36 @@ impl Drop for SubscriptionLease {
     }
 }
 
+struct AcknowledgementGuard {
+    acknowledgement: String,
+    filters_tx: watch::Sender<SubscriptionFilters>,
+    waiters: Arc<Mutex<HashMap<String, oneshot::Sender<Result<SubscriptionActivation, String>>>>>,
+    armed: bool,
+}
+
+impl AcknowledgementGuard {
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for AcknowledgementGuard {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        self.waiters
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(&self.acknowledgement);
+        self.filters_tx.send_modify(|current| {
+            if current.acknowledgement.as_deref() == Some(self.acknowledgement.as_str()) {
+                current.acknowledgement = None;
+            }
+        });
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SubscriptionHealth {
     pub connected: bool,
@@ -60,6 +91,13 @@ pub struct SubscriptionHealth {
     pub last_receive_timestamp_us: Option<i64>,
     pub last_receive_slot: Option<u64>,
     pub input_queue_drop_count: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SubscriptionActivation {
+    pub stream_epoch: u64,
+    pub activated_after_slot: u64,
+    pub acknowledged_at_us: i64,
 }
 
 #[derive(Default)]
@@ -85,6 +123,9 @@ pub struct YellowstoneGrpc {
     stop_tx: watch::Sender<()>,
     subscription_active: Arc<AtomicBool>,
     health: Arc<SubscriptionHealthState>,
+    acknowledgement_nonce: Arc<AtomicU64>,
+    acknowledgement_waiters:
+        Arc<Mutex<HashMap<String, oneshot::Sender<Result<SubscriptionActivation, String>>>>>,
 }
 
 impl YellowstoneGrpc {
@@ -103,6 +144,8 @@ impl YellowstoneGrpc {
             stop_tx,
             subscription_active: Arc::new(AtomicBool::new(false)),
             health: Arc::new(SubscriptionHealthState::default()),
+            acknowledgement_nonce: Arc::new(AtomicU64::new(0)),
+            acknowledgement_waiters: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -122,6 +165,8 @@ impl YellowstoneGrpc {
             stop_tx,
             subscription_active: Arc::new(AtomicBool::new(false)),
             health: Arc::new(SubscriptionHealthState::default()),
+            acknowledgement_nonce: Arc::new(AtomicU64::new(0)),
+            acknowledgement_waiters: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -187,8 +232,54 @@ impl YellowstoneGrpc {
         transaction_filters: Vec<TransactionFilter>,
         account_filters: Vec<AccountFilter>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        self.fail_acknowledgements("subscription update superseded");
         self.replace_subscription_filters(transaction_filters, account_filters);
         Ok(())
+    }
+
+    /// Replace the active filters and wait until Yellowstone proves they were installed.
+    ///
+    /// The proof is a slot update carrying a unique temporary filter label. The
+    /// temporary slot filter is sent atomically with the requested filters and
+    /// removed before this method returns.
+    pub async fn update_subscription_acknowledged(
+        &self,
+        transaction_filters: Vec<TransactionFilter>,
+        account_filters: Vec<AccountFilter>,
+        timeout: Duration,
+    ) -> Result<SubscriptionActivation, Box<dyn std::error::Error>> {
+        self.fail_acknowledgements("subscription update superseded");
+        let acknowledgement = format!(
+            "__sol_parser_subscription_ack_{}",
+            self.acknowledgement_nonce.fetch_add(1, Ordering::AcqRel)
+        );
+        let (tx, rx) = oneshot::channel();
+        self.acknowledgement_waiters
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(acknowledgement.clone(), tx);
+        self.filters_tx.send_replace(SubscriptionFilters {
+            transaction: transaction_filters,
+            account: account_filters,
+            acknowledgement: Some(acknowledgement.clone()),
+        });
+        let mut guard = AcknowledgementGuard {
+            acknowledgement,
+            filters_tx: self.filters_tx.clone(),
+            waiters: Arc::clone(&self.acknowledgement_waiters),
+            armed: true,
+        };
+
+        let result = match tokio::time::timeout(timeout, rx).await {
+            Ok(Ok(Ok(activation))) => {
+                guard.disarm();
+                Ok(activation)
+            }
+            Ok(Ok(Err(error))) => Err(error.into()),
+            Ok(Err(_)) => Err("subscription acknowledgement channel closed".into()),
+            Err(_) => Err("subscription update acknowledgement timed out".into()),
+        };
+        result
     }
 
     pub async fn stop(&self) {
@@ -229,7 +320,20 @@ impl YellowstoneGrpc {
         self.filters_tx.send_replace(SubscriptionFilters {
             transaction: transaction_filters,
             account: account_filters,
+            acknowledgement: None,
         });
+    }
+
+    fn fail_acknowledgements(&self, error: &str) {
+        self.filters_tx.send_modify(|current| current.acknowledgement = None);
+        for (_, waiter) in self
+            .acknowledgement_waiters
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .drain()
+        {
+            let _ = waiter.send(Err(error.to_string()));
+        }
     }
 
     fn claim_subscription(
@@ -264,15 +368,18 @@ impl YellowstoneGrpc {
     }
 
     fn record_reconnect(&self) {
+        self.fail_acknowledgements("gRPC stream reconnected before subscription acknowledgement");
         self.health.reconnect_count.fetch_add(1, Ordering::AcqRel);
         self.health.connected.store(false, Ordering::Release);
     }
 
     fn record_stopped(&self) {
+        self.fail_acknowledgements("gRPC subscription stopped before acknowledgement");
         self.health.connected.store(false, Ordering::Release);
     }
 
     fn record_disconnected(&self, error: &str) -> String {
+        self.fail_acknowledgements("gRPC stream disconnected before subscription acknowledgement");
         let error = self.sanitize_error(error);
         *self.health.last_error.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) =
             Some(error.clone());
@@ -351,7 +458,11 @@ impl YellowstoneGrpc {
 
         let (mut subscribe_tx, mut stream) = loop {
             let filters = filters_rx.borrow_and_update().clone();
-            let request = build_subscribe_request(&filters.transaction, &filters.account);
+            let request = build_subscribe_request(
+                &filters.transaction,
+                &filters.account,
+                filters.acknowledgement.as_deref(),
+            );
             tokio::select! {
                 _ = stop_rx.changed() => return Ok(StreamExit::Stopped),
                 changed = filters_rx.changed() => {
@@ -457,7 +568,55 @@ impl YellowstoneGrpc {
                                 Some(subscribe_update::UpdateOneof::Entry(entry)) => Some(entry.slot),
                                 _ => None,
                             };
-                            self.record_receive(now_micros(), receive_slot);
+                            let acknowledged_at_us = now_micros();
+                            self.record_receive(acknowledged_at_us, receive_slot);
+
+                            let acknowledgement = filters_rx.borrow().acknowledgement.clone();
+                            if let Some((acknowledgement, activated_after_slot)) =
+                                acknowledgement.and_then(|acknowledgement| {
+                                    acknowledgement_slot(&update, &acknowledgement)
+                                        .map(|slot| (acknowledgement, slot))
+                                })
+                            {
+                                let filters = filters_rx.borrow().clone();
+                                let request = build_subscribe_request(
+                                    &filters.transaction,
+                                    &filters.account,
+                                    None,
+                                );
+                                let Some(send_result) =
+                                    run_until_stopped(stop_rx, subscribe_tx.send(request)).await
+                                else {
+                                    return Ok(StreamExit::Stopped);
+                                };
+                                if let Err(error) = send_result {
+                                    return Err(error.to_string());
+                                }
+                                self.filters_tx.send_modify(|current| {
+                                    if current.acknowledgement.as_deref()
+                                        == Some(acknowledgement.as_str())
+                                    {
+                                        current.acknowledgement = None;
+                                    }
+                                });
+                                filters_rx.borrow_and_update();
+                                if let Some(waiter) = self
+                                    .acknowledgement_waiters
+                                    .lock()
+                                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                                    .remove(&acknowledgement)
+                                {
+                                    let _ = waiter.send(Ok(SubscriptionActivation {
+                                        stream_epoch: self
+                                            .health
+                                            .stream_epoch
+                                            .load(Ordering::Acquire),
+                                        activated_after_slot,
+                                        acknowledged_at_us,
+                                    }));
+                                }
+                                continue;
+                            }
 
                             // Check if it's a pong
                             if let Some(subscribe_update::UpdateOneof::Ping(_)) = update.update_oneof {
@@ -503,7 +662,11 @@ impl YellowstoneGrpc {
                     }
                     let filters = filters_rx.borrow_and_update().clone();
                     let request =
-                        build_subscribe_request(&filters.transaction, &filters.account);
+                        build_subscribe_request(
+                            &filters.transaction,
+                            &filters.account,
+                            filters.acknowledgement.as_deref(),
+                        );
                     let Some(send_result) =
                         run_until_stopped(stop_rx, subscribe_tx.send(request)).await
                     else {
@@ -756,6 +919,7 @@ fn get_timestamp_us() -> i64 {
 fn build_subscribe_request(
     tx_filters: &[TransactionFilter],
     acc_filters: &[AccountFilter],
+    acknowledgement: Option<&str>,
 ) -> SubscribeRequest {
     let transactions = tx_filters
         .iter()
@@ -792,7 +956,11 @@ fn build_subscribe_request(
         .collect();
 
     SubscribeRequest {
-        slots: HashMap::new(),
+        slots: acknowledgement
+            .map(|label| {
+                HashMap::from([(label.to_string(), SubscribeRequestFilterSlots::default())])
+            })
+            .unwrap_or_default(),
         accounts,
         transactions,
         transactions_status: HashMap::new(),
@@ -814,6 +982,16 @@ fn consume_establishment_filter_change(
         return Ok(true);
     }
     Ok(false)
+}
+
+fn acknowledgement_slot(update: &SubscribeUpdate, expected: &str) -> Option<u64> {
+    if !update.filters.iter().any(|actual| actual == expected) {
+        return None;
+    }
+    match update.update_oneof.as_ref() {
+        Some(subscribe_update::UpdateOneof::Slot(slot)) => Some(slot.slot),
+        _ => None,
+    }
 }
 
 async fn run_until_stopped<T>(
@@ -980,6 +1158,8 @@ mod tests {
             stop_tx,
             subscription_active: Arc::new(AtomicBool::new(false)),
             health: Arc::new(SubscriptionHealthState::default()),
+            acknowledgement_nonce: Arc::new(AtomicU64::new(0)),
+            acknowledgement_waiters: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -1041,6 +1221,159 @@ mod tests {
         let filters = receiver.borrow_and_update().clone();
         assert_eq!(filters.transaction[0].account_required, ["mint-b"]);
         assert_eq!(filters.account[0].account, ["pool-b"]);
+    }
+
+    #[test]
+    fn acknowledgement_slot_filter_is_atomic_with_target_filters() {
+        let request = build_subscribe_request(
+            &[transaction_filter("mint-a")],
+            &[account_filter("pool-a")],
+            Some("__ack_7"),
+        );
+
+        assert!(request.slots.contains_key("__ack_7"));
+        assert_eq!(request.transactions["tx_0"].account_required, ["mint-a"]);
+        assert_eq!(request.accounts["acc_0"].account, ["pool-a"]);
+
+        let clean = build_subscribe_request(
+            &[transaction_filter("mint-a")],
+            &[account_filter("pool-a")],
+            None,
+        );
+        assert!(clean.slots.is_empty());
+        assert_eq!(clean.transactions, request.transactions);
+        assert_eq!(clean.accounts, request.accounts);
+    }
+
+    #[test]
+    fn only_a_matching_slot_update_acknowledges_filters() {
+        let slot = SubscribeUpdate {
+            filters: vec!["__ack_7".to_string()],
+            update_oneof: Some(subscribe_update::UpdateOneof::Slot(SubscribeUpdateSlot {
+                slot: 42,
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+        assert_eq!(acknowledgement_slot(&slot, "__ack_7"), Some(42));
+        assert_eq!(acknowledgement_slot(&slot, "__ack_8"), None);
+
+        let pong = SubscribeUpdate {
+            filters: vec!["__ack_7".to_string()],
+            update_oneof: Some(subscribe_update::UpdateOneof::Pong(SubscribeUpdatePong::default())),
+            ..Default::default()
+        };
+        assert_eq!(acknowledgement_slot(&pong, "__ack_7"), None);
+    }
+
+    #[tokio::test]
+    async fn acknowledged_update_times_out_and_removes_temporary_filter() {
+        let grpc = client();
+        let error = grpc
+            .update_subscription_acknowledged(
+                vec![transaction_filter("mint-a")],
+                vec![account_filter("pool-a")],
+                Duration::from_millis(1),
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("timed out"));
+        assert!(grpc.filters_tx.borrow().acknowledgement.is_none());
+        assert!(grpc
+            .acknowledgement_waiters
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn dropping_acknowledged_update_removes_only_the_temporary_filter() {
+        let grpc = client();
+        let mut update = Box::pin(grpc.update_subscription_acknowledged(
+            vec![transaction_filter("mint-a")],
+            vec![account_filter("pool-a")],
+            Duration::from_secs(1),
+        ));
+        tokio::select! {
+            result = &mut update => panic!("update unexpectedly finished: {result:?}"),
+            _ = tokio::task::yield_now() => {}
+        }
+        assert!(grpc.filters_tx.borrow().acknowledgement.is_some());
+
+        drop(update);
+
+        let filters = grpc.filters_tx.borrow();
+        assert!(filters.acknowledgement.is_none());
+        assert_eq!(filters.transaction[0].account_required, ["mint-a"]);
+        assert_eq!(filters.account[0].account, ["pool-a"]);
+        assert!(grpc
+            .acknowledgement_waiters
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn acknowledged_update_returns_activation_proof() {
+        let grpc = client();
+        let mut update = Box::pin(grpc.update_subscription_acknowledged(
+            vec![transaction_filter("mint-a")],
+            vec![account_filter("pool-a")],
+            Duration::from_secs(1),
+        ));
+        tokio::select! {
+            result = &mut update => panic!("update unexpectedly finished: {result:?}"),
+            _ = tokio::task::yield_now() => {}
+        }
+        let acknowledgement = grpc.filters_tx.borrow().acknowledgement.clone().unwrap();
+        let waiter = grpc
+            .acknowledgement_waiters
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(&acknowledgement)
+            .unwrap();
+        waiter
+            .send(Ok(SubscriptionActivation {
+                stream_epoch: 3,
+                activated_after_slot: 42,
+                acknowledged_at_us: 123_456,
+            }))
+            .unwrap();
+
+        assert_eq!(
+            update.await.unwrap(),
+            SubscriptionActivation {
+                stream_epoch: 3,
+                activated_after_slot: 42,
+                acknowledged_at_us: 123_456,
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn a_new_update_fails_an_outstanding_acknowledgement() {
+        let grpc = client();
+        let waiting = grpc.update_subscription_acknowledged(
+            vec![transaction_filter("mint-a")],
+            vec![account_filter("pool-a")],
+            Duration::from_secs(1),
+        );
+        let replacing = async {
+            tokio::task::yield_now().await;
+            grpc.update_subscription(
+                vec![transaction_filter("mint-b")],
+                vec![account_filter("pool-b")],
+            )
+            .await
+            .unwrap();
+        };
+        let (result, ()) = tokio::join!(waiting, replacing);
+
+        assert!(result.unwrap_err().to_string().contains("superseded"));
+        let filters = grpc.filters_tx.borrow();
+        assert!(filters.acknowledgement.is_none());
+        assert_eq!(filters.transaction[0].account_required, ["mint-b"]);
     }
 
     #[tokio::test]
