@@ -34,4 +34,7 @@ pub use core::{
 pub use warmup::warmup_parser;
 
 // 导出 RPC 解析函数
-pub use rpc_parser::{parse_rpc_transaction, parse_transaction_from_rpc, convert_rpc_to_grpc, ParseError};
+pub use rpc_parser::{
+    convert_rpc_to_grpc, parse_native_transaction, parse_rpc_transaction,
+    parse_transaction_from_rpc, ParseError,
+};
