@@ -12,13 +12,15 @@ use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
+use solana_sdk::transaction::VersionedTransaction;
 use solana_transaction_status::{
     EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction, UiTransactionEncoding,
 };
 use std::collections::HashMap;
 use yellowstone_grpc_proto::prelude::{
     CompiledInstruction, InnerInstruction, InnerInstructions, Message, MessageAddressTableLookup,
-    MessageHeader, Transaction, TransactionStatusMeta,
+    MessageHeader, SubscribeUpdateTransaction, SubscribeUpdateTransactionInfo, Transaction,
+    TransactionStatusMeta,
 };
 
 /// Parse a transaction from RPC by signature
@@ -199,6 +201,29 @@ pub fn parse_rpc_transaction(
     Ok(events)
 }
 
+/// Parse a decoded transaction with caller-supplied historical metadata.
+pub fn parse_native_transaction(
+    transaction: &VersionedTransaction,
+    meta: &solana_transaction_status::TransactionStatusMeta,
+    slot: u64,
+    tx_index: u64,
+    block_time_us: Option<i64>,
+    received_at_us: i64,
+    stream_epoch: u64,
+    filter: Option<&EventTypeFilter>,
+) -> Result<Vec<DexEvent>, ParseError> {
+    if meta.status.is_err() {
+        return Ok(Vec::new());
+    }
+    let update = native_transaction_update(transaction, meta, slot, tx_index)?;
+    let mut events =
+        crate::grpc::client::parse_transaction_core(&update, received_at_us, block_time_us, filter);
+    for event in &mut events {
+        event.set_stream_epoch(stream_epoch);
+    }
+    Ok(events)
+}
+
 /// Parse error types
 #[derive(Debug)]
 pub enum ParseError {
@@ -372,17 +397,10 @@ pub fn convert_rpc_to_grpc(
                     ParseError::ConversionError(format!("Failed to deserialize transaction: {}", e))
                 })?;
 
-            let sigs: Vec<Vec<u8>> =
-                versioned_tx.signatures.iter().map(|s| s.as_ref().to_vec()).collect();
-
-            let message = match versioned_tx.message {
-                solana_sdk::message::VersionedMessage::Legacy(legacy_msg) => {
-                    convert_legacy_message(&legacy_msg)?
-                }
-                solana_sdk::message::VersionedMessage::V0(v0_msg) => convert_v0_message(&v0_msg)?,
-            };
-
-            (message, sigs)
+            let grpc_tx = convert_native_transaction(&versioned_tx)?;
+            let message =
+                grpc_tx.message.ok_or_else(|| ParseError::MissingField("message".to_string()))?;
+            (message, grpc_tx.signatures)
         }
         EncodedTransaction::Json(_) => {
             return Err(ParseError::ConversionError(
@@ -399,6 +417,155 @@ pub fn convert_rpc_to_grpc(
     let grpc_tx = Transaction { signatures, message: Some(message) };
 
     Ok((grpc_meta, grpc_tx))
+}
+
+fn native_transaction_update(
+    transaction: &VersionedTransaction,
+    meta: &solana_transaction_status::TransactionStatusMeta,
+    slot: u64,
+    tx_index: u64,
+) -> Result<SubscribeUpdateTransaction, ParseError> {
+    let signature = transaction
+        .signatures
+        .first()
+        .ok_or_else(|| ParseError::MissingField("signature".to_string()))?
+        .as_ref()
+        .to_vec();
+
+    Ok(SubscribeUpdateTransaction {
+        transaction: Some(SubscribeUpdateTransactionInfo {
+            signature,
+            is_vote: false,
+            transaction: Some(convert_native_transaction(transaction)?),
+            meta: Some(convert_native_meta(meta)),
+            index: tx_index,
+        }),
+        slot,
+    })
+}
+
+fn convert_native_meta(
+    meta: &solana_transaction_status::TransactionStatusMeta,
+) -> TransactionStatusMeta {
+    let inner_instructions_none = meta.inner_instructions.is_none();
+    let log_messages_none = meta.log_messages.is_none();
+    let return_data_none = meta.return_data.is_none();
+    TransactionStatusMeta {
+        err: None,
+        fee: meta.fee,
+        pre_balances: meta.pre_balances.clone(),
+        post_balances: meta.post_balances.clone(),
+        inner_instructions: meta
+            .inner_instructions
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|inner| InnerInstructions {
+                index: inner.index as u32,
+                instructions: inner
+                    .instructions
+                    .iter()
+                    .map(|instruction| InnerInstruction {
+                        program_id_index: instruction.instruction.program_id_index as u32,
+                        accounts: instruction.instruction.accounts.clone(),
+                        data: instruction.instruction.data.clone(),
+                        stack_height: instruction.stack_height,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        inner_instructions_none,
+        log_messages: meta.log_messages.clone().unwrap_or_default(),
+        log_messages_none,
+        pre_token_balances: native_token_balances(meta.pre_token_balances.as_deref()),
+        post_token_balances: native_token_balances(meta.post_token_balances.as_deref()),
+        rewards: meta
+            .rewards
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|reward| yellowstone_grpc_proto::prelude::Reward {
+                pubkey: reward.pubkey.clone(),
+                lamports: reward.lamports,
+                post_balance: reward.post_balance,
+                reward_type: match reward.reward_type {
+                    None => yellowstone_grpc_proto::prelude::RewardType::Unspecified,
+                    Some(solana_transaction_status::RewardType::Fee) => {
+                        yellowstone_grpc_proto::prelude::RewardType::Fee
+                    }
+                    Some(solana_transaction_status::RewardType::Rent) => {
+                        yellowstone_grpc_proto::prelude::RewardType::Rent
+                    }
+                    Some(solana_transaction_status::RewardType::Staking) => {
+                        yellowstone_grpc_proto::prelude::RewardType::Staking
+                    }
+                    Some(solana_transaction_status::RewardType::Voting) => {
+                        yellowstone_grpc_proto::prelude::RewardType::Voting
+                    }
+                } as i32,
+                commission: reward.commission.map_or_else(String::new, |value| value.to_string()),
+            })
+            .collect(),
+        loaded_writable_addresses: meta
+            .loaded_addresses
+            .writable
+            .iter()
+            .map(|address| address.to_bytes().to_vec())
+            .collect(),
+        loaded_readonly_addresses: meta
+            .loaded_addresses
+            .readonly
+            .iter()
+            .map(|address| address.to_bytes().to_vec())
+            .collect(),
+        return_data: meta.return_data.as_ref().map(|data| {
+            yellowstone_grpc_proto::prelude::ReturnData {
+                program_id: data.program_id.to_bytes().to_vec(),
+                data: data.data.clone(),
+            }
+        }),
+        return_data_none,
+        compute_units_consumed: meta.compute_units_consumed,
+        cost_units: meta.cost_units,
+    }
+}
+
+fn native_token_balances(
+    balances: Option<&[solana_transaction_status::TransactionTokenBalance]>,
+) -> Vec<yellowstone_grpc_proto::prelude::TokenBalance> {
+    balances
+        .unwrap_or_default()
+        .iter()
+        .map(|balance| yellowstone_grpc_proto::prelude::TokenBalance {
+            account_index: balance.account_index as u32,
+            mint: balance.mint.clone(),
+            ui_token_amount: Some(yellowstone_grpc_proto::prelude::UiTokenAmount {
+                ui_amount: balance.ui_token_amount.ui_amount.unwrap_or_default(),
+                decimals: balance.ui_token_amount.decimals as u32,
+                amount: balance.ui_token_amount.amount.clone(),
+                ui_amount_string: balance.ui_token_amount.ui_amount_string.clone(),
+            }),
+            owner: balance.owner.clone(),
+            program_id: balance.program_id.clone(),
+        })
+        .collect()
+}
+
+fn convert_native_transaction(
+    transaction: &VersionedTransaction,
+) -> Result<Transaction, ParseError> {
+    let message = match &transaction.message {
+        solana_sdk::message::VersionedMessage::Legacy(message) => convert_legacy_message(message)?,
+        solana_sdk::message::VersionedMessage::V0(message) => convert_v0_message(message)?,
+    };
+    Ok(Transaction {
+        signatures: transaction
+            .signatures
+            .iter()
+            .map(|signature| signature.as_ref().to_vec())
+            .collect(),
+        message: Some(message),
+    })
 }
 
 fn convert_legacy_message(
@@ -469,6 +636,18 @@ fn convert_v0_message(msg: &solana_sdk::message::v0::Message) -> Result<Message,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use solana_sdk::{
+        hash::Hash,
+        message::{
+            compiled_instruction::CompiledInstruction as NativeCompiledInstruction,
+            legacy::Message as LegacyMessage,
+            v0::{
+                LoadedAddresses, Message as V0Message,
+                MessageAddressTableLookup as NativeAddressTableLookup,
+            },
+            MessageHeader as NativeMessageHeader, VersionedMessage,
+        },
+    };
 
     #[test]
     fn test_parse_error_display() {
@@ -493,5 +672,192 @@ mod tests {
             let is_rate_limited = msg.contains("429") || msg.contains("Too Many Requests");
             assert_eq!(is_rate_limited, should_be_rate_limited, "Failed for message: {}", msg);
         }
+    }
+
+    #[test]
+    fn native_transaction_matches_live_core_and_preserves_metadata() {
+        let transaction = VersionedTransaction {
+            signatures: vec![Signature::from([7; 64])],
+            message: VersionedMessage::Legacy(LegacyMessage::default()),
+        };
+        let mut event_data =
+            crate::logs::pump::discriminators::MIGRATE_EVENT.to_le_bytes().to_vec();
+        event_data.resize(8 + 160, 0);
+        let meta = solana_transaction_status::TransactionStatusMeta {
+            log_messages: Some(vec![
+                format!("Program {} invoke [1]", crate::grpc::program_ids::PUMPFUN_PROGRAM_ID),
+                format!("Program data: {}", general_purpose::STANDARD.encode(event_data)),
+            ]),
+            ..Default::default()
+        };
+        let update = native_transaction_update(&transaction, &meta, 42, 9).unwrap();
+        let mut live =
+            crate::grpc::client::parse_transaction_core(&update, 123_456, Some(987_000), None);
+        for event in &mut live {
+            event.set_stream_epoch(3);
+        }
+
+        let native =
+            parse_native_transaction(&transaction, &meta, 42, 9, Some(987_000), 123_456, 3, None)
+                .unwrap();
+
+        assert_eq!(serde_json::to_value(&native).unwrap(), serde_json::to_value(&live).unwrap());
+        assert_eq!(native.len(), 1);
+        assert_eq!(native[0].metadata().slot, 42);
+        assert_eq!(native[0].metadata().tx_index, 9);
+        assert_eq!(native[0].metadata().event_ordinal, 1);
+        assert_eq!(native[0].metadata().stream_epoch, 3);
+        assert_eq!(native[0].metadata().block_time_us, 987_000);
+        assert_eq!(native[0].metadata().grpc_recv_us, 123_456);
+
+        let filter =
+            EventTypeFilter::include_only(vec![crate::grpc::types::EventType::PumpSwapBuy]);
+        assert!(parse_native_transaction(
+            &transaction,
+            &meta,
+            42,
+            9,
+            Some(987_000),
+            123_456,
+            3,
+            Some(&filter),
+        )
+        .unwrap()
+        .is_empty());
+    }
+
+    #[test]
+    fn native_transaction_requires_a_signature() {
+        let transaction = VersionedTransaction {
+            signatures: Vec::new(),
+            message: VersionedMessage::Legacy(LegacyMessage::default()),
+        };
+
+        let error = parse_native_transaction(
+            &transaction,
+            &Default::default(),
+            42,
+            9,
+            None,
+            123_456,
+            3,
+            None,
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, ParseError::MissingField(field) if field == "signature"));
+    }
+
+    #[test]
+    fn native_transaction_ignores_failed_transactions() {
+        let transaction = VersionedTransaction {
+            signatures: vec![Signature::from([7; 64])],
+            message: VersionedMessage::Legacy(LegacyMessage::default()),
+        };
+        let meta = solana_transaction_status::TransactionStatusMeta {
+            status: Err(solana_sdk::transaction::TransactionError::AccountNotFound),
+            log_messages: Some(vec![format!(
+                "Program {} invoke [1]",
+                crate::grpc::program_ids::PUMPFUN_PROGRAM_ID
+            )]),
+            ..Default::default()
+        };
+
+        assert!(parse_native_transaction(
+            &transaction,
+            &meta,
+            42,
+            9,
+            Some(987_000),
+            123_456,
+            3,
+            None,
+        )
+        .unwrap()
+        .is_empty());
+    }
+
+    #[test]
+    fn native_v0_conversion_preserves_loaded_accounts_and_instruction_order() {
+        let lookup_key = Pubkey::new_unique();
+        let writable = Pubkey::new_unique();
+        let readonly = Pubkey::new_unique();
+        let transaction = VersionedTransaction {
+            signatures: vec![Signature::from([7; 64])],
+            message: VersionedMessage::V0(V0Message {
+                header: NativeMessageHeader {
+                    num_required_signatures: 1,
+                    num_readonly_signed_accounts: 0,
+                    num_readonly_unsigned_accounts: 0,
+                },
+                account_keys: vec![Pubkey::new_unique()],
+                recent_blockhash: Hash::new_unique(),
+                instructions: vec![
+                    NativeCompiledInstruction {
+                        program_id_index: 0,
+                        accounts: vec![1],
+                        data: vec![10],
+                    },
+                    NativeCompiledInstruction {
+                        program_id_index: 0,
+                        accounts: vec![2],
+                        data: vec![20],
+                    },
+                ],
+                address_table_lookups: vec![NativeAddressTableLookup {
+                    account_key: lookup_key,
+                    writable_indexes: vec![3],
+                    readonly_indexes: vec![4],
+                }],
+            }),
+        };
+        let meta = solana_transaction_status::TransactionStatusMeta {
+            inner_instructions: Some(vec![solana_transaction_status::InnerInstructions {
+                index: 1,
+                instructions: vec![solana_transaction_status::InnerInstruction {
+                    instruction: NativeCompiledInstruction {
+                        program_id_index: 2,
+                        accounts: vec![3, 4],
+                        data: vec![30],
+                    },
+                    stack_height: Some(2),
+                }],
+            }]),
+            log_messages: Some(vec!["first".to_owned(), "second".to_owned()]),
+            loaded_addresses: LoadedAddresses {
+                writable: vec![writable],
+                readonly: vec![readonly],
+            },
+            ..Default::default()
+        };
+
+        let update = native_transaction_update(&transaction, &meta, 42, 9).unwrap();
+        let info = update.transaction.unwrap();
+        let grpc_transaction = info.transaction.unwrap();
+        let grpc_message = grpc_transaction.message.unwrap();
+        let grpc_meta = info.meta.unwrap();
+
+        assert_eq!(info.index, 9);
+        assert_eq!(info.signature, transaction.signatures[0].as_ref());
+        assert!(grpc_message.versioned);
+        assert_eq!(
+            grpc_message
+                .instructions
+                .iter()
+                .map(|instruction| instruction.data.clone())
+                .collect::<Vec<_>>(),
+            [vec![10], vec![20]]
+        );
+        assert_eq!(
+            grpc_message.address_table_lookups[0].account_key,
+            lookup_key.to_bytes().to_vec()
+        );
+        assert_eq!(grpc_message.address_table_lookups[0].writable_indexes, [3]);
+        assert_eq!(grpc_message.address_table_lookups[0].readonly_indexes, [4]);
+        assert_eq!(grpc_meta.loaded_writable_addresses, [writable.to_bytes().to_vec()]);
+        assert_eq!(grpc_meta.loaded_readonly_addresses, [readonly.to_bytes().to_vec()]);
+        assert_eq!(grpc_meta.inner_instructions[0].index, 1);
+        assert_eq!(grpc_meta.inner_instructions[0].instructions[0].data, [30]);
+        assert_eq!(grpc_meta.log_messages, ["first".to_owned(), "second".to_owned()]);
     }
 }

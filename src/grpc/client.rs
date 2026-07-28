@@ -1019,7 +1019,7 @@ fn parse_transaction_to_vec(
 }
 
 #[inline]
-fn parse_transaction_core(
+pub(crate) fn parse_transaction_core(
     tx: &SubscribeUpdateTransaction,
     grpc_us: i64,
     block_us: Option<i64>,
